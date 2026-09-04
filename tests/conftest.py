@@ -22,7 +22,7 @@ def real_data() -> pd.DataFrame:
         "income": rng.gamma(3.0, 5000.0, n),
         "score": rng.normal(0.5, 0.2, n).clip(0, 1),
         "education": rng.choice(["high_school", "bachelor", "master", "phd"], n, p=[0.35, 0.4, 0.15, 0.1]),
-        "is_fraud": rng.choice([0, 1], n, p=[0.9, 0.1]),
+        "is_fraud": rng.choice(["no", "yes"], n, p=[0.9, 0.1]),
     })
 
 
