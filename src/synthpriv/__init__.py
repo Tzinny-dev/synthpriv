@@ -16,6 +16,7 @@ from synthpriv.generators.tabular import (
 from synthpriv.dp.gan import DPSGDGenerator
 from synthpriv.pipeline import PrivacyPreservingSynthesizer
 from synthpriv.privacy.mechanisms import DPSGD, NoPrivacy, PrivacyMechanism
+from synthpriv.sweep import SweepResult, run_epsilon_sweep
 
 __version__ = "0.1.0"
 
@@ -27,6 +28,8 @@ __all__ = [
     "CopulaGANGenerator",
     "GaussianCopulaGenerator",
     "DPSGDGenerator",
+    "SweepResult",
+    "run_epsilon_sweep",
     "PrivacyMechanism",
     "NoPrivacy",
     "DPSGD",

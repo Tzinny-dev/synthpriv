@@ -138,9 +138,146 @@ _TMPL = Template(_TEMPLATE)
 _TMPL.globals["details_cells"] = details_cells
 
 
-def render_html(data: dict[str, Any], path: str | Path) -> Path:
+def render_html(
+    data: dict[str, Any],
+    path: str | Path,
+) -> Path:
     """Renderiza ``data`` (salida de ``EvaluationReport.data``) a HTML."""
     doc = _TMPL.render(data=data)
     path = Path(path)
     path.write_text(doc, encoding="utf-8")
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Informe del barrido epsilon-utilidad
+# ---------------------------------------------------------------------------
+
+_SWEEP_TEMPLATE = """<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>synthpriv - Barrido epsilon/utilidad</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin:0; color:#1f2328; background:#f6f8fa; }
+  header { background:#24292f; color:#fff; padding:20px 28px; }
+  header h1 { margin:0 0 6px; font-size:22px; }
+  main { max-width:1000px; margin:24px auto; padding:0 16px; }
+  .card { background:#fff; border:1px solid #d0d7de; border-radius:8px; padding:18px 22px; margin-bottom:18px; }
+  .card h2 { margin:0 0 12px; font-size:17px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid #d0d7de; }
+  th { color:#59636e; font-size:12px; text-transform:uppercase; }
+  svg { width:100%; height:auto; }
+  .chart-title { font-size:14px; font-weight:600; margin:14px 0 4px; }
+  .muted { color:#59636e; font-size:13px; }
+  footer { color:#59636e; font-size:12px; text-align:center; padding:18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Barrido epsilon vs utilidad</h1>
+  <p>Generador: dp-gan &middot; Puntos: {{ rows|length }} &middot; Delta: {{ delta }}</p>
+</header>
+<main>
+  <div class="card">
+    <h2>Tabla</h2>
+    <table>
+      <tr>
+        {% for col in columns %}<th>{{ col }}</th>{% endfor %}
+      </tr>
+      {% for row in rows %}
+      <tr>
+        {% for col in columns %}<td>{{ row.get(col) }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% for chart in charts %}
+  <div class="card">
+    <div class="chart-title">{{ chart.title }}</div>
+    <p class="muted">{{ chart.description }}</p>
+    {{ chart.svg_html|safe }}
+  </div>
+  {% endfor %}
+</main>
+<footer>Generado con synthpriv. Eje X: epsilon acumulado real (accountant RDP).</footer>
+</body>
+</html>
+"""
+
+_SWEEP_TMPL = Template(_SWEEP_TEMPLATE)
+
+
+def _svg_line_chart(xs: list[float], ys: list[float], label_x: str, label_y: str,
+                    width: int = 640, height: int = 240) -> str:
+    """Curva SVG 0-100% con polyline y puntos para (xs, ys)."""
+    if not xs:
+        return ""
+    xmin, xmax = min(xs), max(xs)
+    ymin, ymax = min(ys), max(ys)
+    span_x = (xmax - xmin) or 1.0
+    span_y = (ymax - ymin) or 1.0
+    pad_x, pad_y = 46, 28
+
+    def px(x: float) -> float:
+        return pad_x + (x - xmin) / span_x * (width - 2 * pad_x)
+
+    def py(y: float) -> float:
+        return (height - pad_y) - (y - ymin) / span_y * (height - 2 * pad_y)
+
+    lines = " ".join(f"{px(x):.1f},{py(y):.1f}" for x, y in zip(xs, ys))
+    dots = "".join(
+        f'<circle cx="{px(x):.1f}" cy="{py(y):.1f}" r="4" fill="#1a7f37"/>'
+        for x, y in zip(xs, ys)
+    )
+    ticks = "".join(
+        f'<text x="{pad_x + (x - xmin) / span_x * (width - 2 * pad_x):.1f}" y="{height - pad_y + 16}" '
+        f'font-size="11" fill="#59636e" text-anchor="middle">{x:g}</text>'
+        for x in [xmin, (xmin + xmax) / 2, xmax]
+    )
+    return (
+        f'<svg viewBox="0 0 {width} {height}" role="img" '
+        f'aria-label="curva {label_y} vs {label_x}">'
+        f'<line x1="{pad_x}" y1="{height - pad_y}" x2="{width - pad_x}" y2="{height - pad_y}" '
+        f'stroke="#d0d7de"/>'
+        f'<text x="{width / 2}" y="{height - 6}" font-size="12" fill="#59636e" text-anchor="middle">'
+        f'{label_x}</text>'
+        f'<text x="12" y="16" font-size="12" fill="#59636e">{label_y}</text>'
+        f'<polyline points="{lines}" fill="none" stroke="#1f883d" stroke-width="2"/>'
+        f'{ticks}{dots}</svg>'
+    )
+
+
+def render_sweep_html(result, path: str | Path) -> Path:
+    """Renderiza un ``SweepResult`` a HTML autocontenido con las curvas."""
+    from synthpriv.sweep import SweepResult
+
+    assert isinstance(result, SweepResult), "se esperaba un SweepResult"
+    df = result.dataframe()
+    rows = df.to_dict("records")
+    columns = list(df.columns)
+
+    charts = []
+    for metric in df.select_dtypes(include=["number"]).columns:
+        if metric in ("target_epsilon", "measured_epsilon", "delta", "fit_seconds"):
+            continue
+        sub = df.dropna(subset=["measured_epsilon", metric])
+        if len(sub) < 2:
+            continue
+        charts.append({
+            "title": metric.replace("util_", "Utilidad: ").replace("priv_", "Privacidad: "),
+            "description": "Valor de la metrica frente al epsilon acumulado real (menor epsilon = mas privado).",
+            "svg_html": _svg_line_chart(
+                list(sub["measured_epsilon"]), list(sub[metric]),
+                "epsilon acumulado real", metric,
+            ),
+        })
+
+    html_doc = _SWEEP_TMPL.render(rows=rows, columns=columns, charts=charts,
+                                  delta=result.rows[0].get("delta", "-") if result.rows else "-")
+    path = Path(path)
+    path.write_text(html_doc, encoding="utf-8")
     return path

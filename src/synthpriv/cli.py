@@ -7,12 +7,15 @@ Usage:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import click
 
 from synthpriv.core.registry import list_generators
 from synthpriv.pipeline import PrivacyPreservingSynthesizer
 from synthpriv.privacy.mechanisms import DPSGD, NoPrivacy
+from synthpriv.sweep import run_epsilon_sweep
 from synthpriv.utils import get_logger
 
 logger = get_logger("cli")
@@ -90,6 +93,37 @@ def evaluate(real, synthetic, epsilon, delta, output):
     report.save(output)
     logger.info("Informe generado en %s", output)
     click.echo(report.summary())
+
+
+@cli.command()
+@click.option("--data", "-r", "data", required=True, type=click.Path(exists=True, dir_okay=False),
+              help="CSV con los datos reales.")
+@click.option("--epsilons", "-e", "epsilons", default="0.1,0.5,1,2,5,50", show_default=True,
+              help="Presupuestos DP separados por comas (50 ~ casi sin DP).")
+@click.option("--delta", default=1e-5, type=float, show_default=True, help="Delta DP.")
+@click.option("--epochs", default=50, type=int, show_default=True, help="Epochs por punto.")
+@click.option("--rows", "-n", "rows", default=2000, type=int, show_default=True,
+              help="Filas sinteticas por punto.")
+@click.option("--output", "-o", "output", default="sweep_report.html", type=click.Path(dir_okay=False),
+              help="Informe HTML de salida.")
+def sweep(data, epsilons, delta, epochs, rows, output):
+    """Entrena dp-gan con varios epsilon y dibuja la curva privacidad/utilidad."""
+    df = pd.read_csv(data)
+    eps = tuple(float(e.strip()) for e in epsilons.split(",") if e.strip())
+    result = run_epsilon_sweep(
+        df,
+        epsilons=eps,
+        delta=delta,
+        generator_kwargs={"epochs": epochs, "batch_size": 256},
+        num_rows=rows,
+    )
+    result.to_csv(str(Path(output).with_suffix(".csv")))
+    result.save_report(output)
+    for r in result.rows:
+        click.echo("eps objetivo {:>6} | medido {:>8} | {}".format(
+            r["target_epsilon"], r["measured_epsilon"],
+            {k: v for k, v in r.items() if k.startswith("util_")}))
+    click.echo(f"Informe guardado en {output}")
 
 
 if __name__ == "__main__":  # pragma: no cover

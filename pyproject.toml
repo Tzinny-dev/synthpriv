@@ -38,4 +38,7 @@ markers = [
 addopts = "-m 'not slow and not deep'"
 filterwarnings = [
     "ignore:.*SingleTableMetadata.*deprecated:FutureWarning",
+    "ignore:Full backward hook.*:UserWarning",
+    "ignore:Secure RNG turned off.*:UserWarning",
+    "ignore:Optimal order is the largest alpha.*:UserWarning",
 ]
