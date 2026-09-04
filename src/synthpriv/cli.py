@@ -15,6 +15,7 @@ import click
 from synthpriv.core.registry import list_generators
 from synthpriv.pipeline import PrivacyPreservingSynthesizer
 from synthpriv.privacy.mechanisms import DPSGD, NoPrivacy
+from synthpriv.benchmark import run_benchmark
 from synthpriv.sweep import run_epsilon_sweep
 from synthpriv.utils import get_logger
 
@@ -150,6 +151,48 @@ def sweep(data, epsilons, delta, epochs, rows, output):
         click.echo("eps objetivo {:>6} | medido {:>8} | {}".format(
             r["target_epsilon"], r["measured_epsilon"],
             {k: v for k, v in r.items() if k.startswith("util_")}))
+    click.echo(f"Informe guardado en {output}")
+
+
+@cli.command()
+@click.option("--data", "-d", "data", required=True, type=click.Path(exists=True, dir_okay=False),
+              help="CSV con los datos reales.")
+@click.option("--epsilons", "-e", "epsilons", default="1,2,5,10,50", show_default=True,
+              help="Presupuestos DP del dp-gan separados por comas.")
+@click.option("--delta", default=1e-5, type=float, show_default=True, help="Delta DP.")
+@click.option("--baselines", "-b", "baselines", default="gaussian-copula", show_default=True,
+              help="Generadores SDV sin DP separados por comas; usa 'all' para todos.")
+@click.option("--epochs", default=100, type=int, show_default=True, help="Epochs del dp-gan.")
+@click.option("--baseline-epochs", default=0, type=int, show_default=True,
+              help="Epochs de los baselines SDV (0 = el default de cada generador).")
+@click.option("--rows", "-n", "rows", default=None, type=int,
+              help="Filas sinteticas por punto (default: mismas que reales).")
+@click.option("--output", "-o", "output", default="benchmark_report.html", type=click.Path(dir_okay=False),
+              help="Informe HTML de salida.")
+def benchmark(data, epsilons, delta, baselines, epochs, baseline_epochs, rows, output):
+    """Compara dp-gan (varios epsilon) frente a generadores SDV sin DP."""
+    df = pd.read_csv(data)
+    eps = tuple(float(e.strip()) for e in epsilons.split(",") if e.strip())
+    bl = ["gaussian-copula", "ctgan", "tvae", "copula-gan"] if baselines.strip() == "all" \
+        else tuple(b.strip() for b in baselines.split(",") if b.strip())
+    baseline_kwargs = {b: {"epochs": baseline_epochs} for b in bl if baseline_epochs > 0}
+
+    result = run_benchmark(
+        df,
+        epsilons=eps,
+        delta=delta,
+        baselines=bl,
+        generator_kwargs={"epochs": epochs, "batch_size": 128},
+        baseline_kwargs=baseline_kwargs,
+        num_rows=rows,
+    )
+    result.to_csv(str(Path(output).with_suffix(".csv")))
+    result.save_report(output)
+    for r in result.dataframe().to_dict("records"):
+        extra = f" | eps {r['target_epsilon']:.1f} -> medido {r['measured_epsilon']}" \
+            if r.get("measured_epsilon") is not None else " (baseline, sin DP)"
+        click.echo("{:<16} {}{}".format(r["model"], extra,
+                                        {k: v for k, v in r.items() if k.startswith("util_")}))
     click.echo(f"Informe guardado en {output}")
 
 

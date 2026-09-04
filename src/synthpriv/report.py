@@ -216,12 +216,15 @@ _SWEEP_TMPL = Template(_SWEEP_TEMPLATE)
 
 
 def _svg_line_chart(xs: list[float], ys: list[float], label_x: str, label_y: str,
+                    refs: list[tuple[str, float]] | None = None,
                     width: int = 640, height: int = 240) -> str:
-    """Curva SVG 0-100% con polyline y puntos para (xs, ys)."""
+    """Curva SVG 0-100% con polyline, puntos y lineas de referencia (refs)."""
     if not xs:
         return ""
+    refs = refs or []
     xmin, xmax = min(xs), max(xs)
-    ymin, ymax = min(ys), max(ys)
+    y_vals = list(ys) + [y for _, y in refs]
+    ymin, ymax = min(y_vals), max(y_vals)
     span_x = (xmax - xmin) or 1.0
     span_y = (ymax - ymin) or 1.0
     pad_x, pad_y = 46, 28
@@ -237,6 +240,13 @@ def _svg_line_chart(xs: list[float], ys: list[float], label_x: str, label_y: str
         f'<circle cx="{px(x):.1f}" cy="{py(y):.1f}" r="4" fill="#1a7f37"/>'
         for x, y in zip(xs, ys)
     )
+    ref_lines = "".join(
+        f'<line x1="{pad_x}" y1="{py(y):.1f}" x2="{width - pad_x}" y2="{py(y):.1f}" '
+        f'stroke="#d4a72c" stroke-dasharray="4 3"/>'
+        f'<text x="{width - pad_x - 2}" y="{max(py(y) - 4, 10):.1f}" font-size="10" '
+        f'fill="#9a6700" text-anchor="end">{label} {y:g}</text>'
+        for label, y in refs
+    )
     ticks = "".join(
         f'<text x="{pad_x + (x - xmin) / span_x * (width - 2 * pad_x):.1f}" y="{height - pad_y + 16}" '
         f'font-size="11" fill="#59636e" text-anchor="middle">{x:g}</text>'
@@ -250,6 +260,7 @@ def _svg_line_chart(xs: list[float], ys: list[float], label_x: str, label_y: str
         f'<text x="{width / 2}" y="{height - 6}" font-size="12" fill="#59636e" text-anchor="middle">'
         f'{label_x}</text>'
         f'<text x="12" y="16" font-size="12" fill="#59636e">{label_y}</text>'
+        f'{ref_lines}'
         f'<polyline points="{lines}" fill="none" stroke="#1f883d" stroke-width="2"/>'
         f'{ticks}{dots}</svg>'
     )
@@ -282,6 +293,111 @@ def render_sweep_html(result, path: str | Path) -> Path:
 
     html_doc = _SWEEP_TMPL.render(rows=rows, columns=columns, charts=charts,
                                   delta=result.rows[0].get("delta", "-") if result.rows else "-")
+    path = Path(path)
+    path.write_text(html_doc, encoding="utf-8")
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Informe del benchmark dp-gan vs baselines (sin DP)
+# ---------------------------------------------------------------------------
+
+_BENCHMARK_TEMPLATE = """<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>synthpriv - Benchmark dp-gan vs baselines</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin:0; color:#1f2328; background:#f6f8fa; }
+  header { background:#24292f; color:#fff; padding:20px 28px; }
+  header h1 { margin:0 0 6px; font-size:22px; }
+  header p { margin:2px 0; opacity:.85; font-size:14px; }
+  main { max-width:1000px; margin:24px auto; padding:0 16px; }
+  .card { background:#fff; border:1px solid #d0d7de; border-radius:8px; padding:18px 22px; margin-bottom:18px; }
+  .card h2 { margin:0 0 12px; font-size:17px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid #d0d7de; }
+  th { color:#59636e; font-size:12px; text-transform:uppercase; }
+  svg { width:100%; height:auto; }
+  .chart-title { font-size:14px; font-weight:600; margin:14px 0 4px; }
+  .muted { color:#59636e; font-size:13px; }
+  footer { color:#59636e; font-size:12px; text-align:center; padding:18px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Benchmark dp-gan (DP) vs baselines SDV</h1>
+  <p>Baselines sin DP: {{ baselines|join(", ") }} &middot; Delta: {{ delta }}</p>
+</header>
+<main>
+  <div class="card">
+    <h2>Tabla (por punto de epsilon / baseline)</h2>
+    <p class="muted">Las lineas discontinuas del mismo color en las curvas son los valores de cada baseline.</p>
+    <table>
+      <tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr>
+      {% for row in rows %}
+      <tr>{% for col in columns %}<td>{{ row.get(col) }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  {% for chart in charts %}
+  <div class="card">
+    <div class="chart-title">{{ chart.title }}</div>
+    <p class="muted">{{ chart.description }}</p>
+    {{ chart.svg_html|safe }}
+  </div>
+  {% endfor %}
+</main>
+<footer>Generado con synthpriv. Eje X: epsilon acumulado real (accountant RDP). Menor epsilon = mas privado.</footer>
+</body>
+</html>
+"""
+
+_BENCHMARK_TMPL = Template(_BENCHMARK_TEMPLATE)
+
+
+def render_benchmark_html(result, path: str | Path) -> Path:
+    """Renderiza un ``BenchmarkResult`` a HTML con curvas dp-gan y refs de baselines."""
+    from synthpriv.benchmark import BenchmarkResult
+
+    assert isinstance(result, BenchmarkResult), "se esperaba un BenchmarkResult"
+    df = result.dataframe()
+    rows = df.to_dict("records")
+    columns = list(df.columns)
+
+    charts = []
+    metric_columns = [
+        c for c in df.columns
+        if (c.startswith("util_") or c.startswith("priv_"))
+    ]
+    for metric in metric_columns:
+        curve = result.curve("dp-gan", metric)
+        if len(curve) < 2:
+            continue
+        refs = [
+            (b, result.baseline_value(b, metric))
+            for b in result.baselines
+            if result.baseline_value(b, metric) is not None
+        ]
+        title = metric.replace("util_", "Utilidad: ").replace("priv_", "Privacidad: ")
+        charts.append({
+            "title": title,
+            "description": "dp-gan (verde) frente al valor de cada baseline sin DP (discontinuo). "
+                           "Si a epsilon alto el dp-gan no alcanza el baseline, la arquitectura limita; "
+                           "la distancia a epsilon bajo es el coste de la privacidad.",
+            "svg_html": _svg_line_chart(
+                [p["x"] for p in curve], [p["y"] for p in curve],
+                "epsilon acumulado real", metric, refs=refs,
+            ),
+        })
+
+    html_doc = _BENCHMARK_TMPL.render(
+        rows=rows, columns=columns, charts=charts,
+        baselines=result.baselines,
+        delta=result.rows[0].get("delta", "-") if result.rows else "-",
+    )
     path = Path(path)
     path.write_text(html_doc, encoding="utf-8")
     return path

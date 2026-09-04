@@ -18,6 +18,7 @@ from synthpriv.pipeline import PrivacyPreservingSynthesizer
 from synthpriv.privacy.assurance import DpAssurance, assert_dp
 from synthpriv.privacy.mechanisms import DPSGD, NoPrivacy, PrivacyMechanism
 from synthpriv.sweep import SweepResult, run_epsilon_sweep
+from synthpriv.benchmark import BenchmarkResult, run_benchmark
 
 __version__ = "0.1.0"
 
@@ -31,6 +32,8 @@ __all__ = [
     "DPSGDGenerator",
     "SweepResult",
     "run_epsilon_sweep",
+    "BenchmarkResult",
+    "run_benchmark",
     "DpAssurance",
     "assert_dp",
     "PrivacyMechanism",

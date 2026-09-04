@@ -17,6 +17,7 @@ El proyecto se desarrolla por fases acumulativas, cada una con su batería de te
 | 4 | `1dc5108` | Barrido `epsilon ↔ utilidad` (curva privacidad/utilidad) |
 | 5 | `2c2b05e` | Serialización: `save_model` / `load_model` (regenerar sin reentrenar) |
 | 6 | `603445f` | `assert_dp`: validación de integridad de pasos DP y presupuesto ε |
+| 7 | *(próxima)* | Benchmark `dp-gan` vs baselines SDV sin DP (curvas de utilidad + gap) |
 
 ## Instalación
 
@@ -75,6 +76,9 @@ synthpriv evaluate --real real.csv --synthetic synthetic.csv --epsilon 8 -o repo
 
 # barrido epsilon <-> utilidad
 synthpriv sweep --data real.csv --epsilons "0.1,0.5,1,2,5,50" -o sweep_report.html
+
+# benchmark dp-gan vs generadores SDV sin DP (curvas + gap de utilidad)
+synthpriv benchmark --data real.csv --epsilons "1,5,50" --baselines gaussian-copula -o bench.html
 
 # auditar que la garantía DP de un modelo persistido no se excede
 synthpriv dpcheck --model demo_model.sz --tolerance 0.05
@@ -148,6 +152,7 @@ Solo el discriminador ve datos reales y entrena con DP-SGD. Hiperparámetros rel
 - `test_registry`, `test_generators`, `test_metrics`, `test_pipeline`, `test_cli`
 - `test_dp` (DP end-to-end + cobertura de clases minoritarias)
 - `test_sweep` (barrido ε-utilidad)
+- `test_benchmark` (benchmark dp-gan vs baselines: estructura, gaps, reportes)
 - `test_serialization` (persistencia/recarga)
 - `test_assurance` (integridad de pasos DP y presupuesto)
 
