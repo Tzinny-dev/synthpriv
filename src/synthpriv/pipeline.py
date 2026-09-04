@@ -18,6 +18,7 @@ from synthpriv.metrics.core import (
     metrics_summary,
 )
 from synthpriv.privacy.accountant import PrivacyAccountant
+from synthpriv.privacy.assurance import DpAssurance, assert_dp
 from synthpriv.privacy.mechanisms import NoPrivacy, PrivacyMechanism
 from synthpriv.utils import get_logger, timed_block
 from synthpriv.report import render_html
@@ -136,6 +137,26 @@ class PrivacyPreservingSynthesizer:
         """Atajo: fit + sample."""
         return self.fit(real_data).sample(num_rows, **kwargs)
 
+    def assert_dp(self, declared_epsilon: float | None = None, *,
+                  tolerance: float = 0.05) -> DpAssurance:
+        """Valida la garantia DP del sintetizador contra el epsilon del accountant.
+
+        ``declared_epsilon`` por defecto es el del mecanismo configurado. El
+        resultado reconcilia el epsilon medido por el generador con el del
+        accountant (si discrepan, manda el del accountant tras ``fit``).
+        """
+        declared = declared_epsilon if declared_epsilon is not None else \
+            getattr(self.privacy_mechanism, "epsilon", None)
+        assurance = assert_dp(self.generator, declared, tolerance=tolerance)
+        effective = self.accountant.get_epsilon()
+        if effective is not None and assurance.measured_epsilon is not None:
+            if assurance.measured_epsilon != effective:
+                assurance.measured_epsilon = effective
+                assurance.budget_respected = (
+                    effective <= (assurance.declared_epsilon or float("inf"))
+                )
+        return assurance
+
     def evaluate(
         self,
         real_data: pd.DataFrame,
@@ -166,6 +187,7 @@ class PrivacyPreservingSynthesizer:
             "privacy_mechanism": {
                 "configured": self.privacy_mechanism.get_report(),
                 "accountant": self.accountant.report(),
+                "assurance": self.assert_dp().as_dict(),
             },
             "utility": utility,
             "privacy_metrics": privacy_metrics,

@@ -32,6 +32,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from synthpriv.core.base import BaseSynthesizer
 from synthpriv.core.registry import register_generator
 from synthpriv.dp.encoder import ModeEncoder
+from synthpriv.privacy.assurance import DpAssurance, assert_dp
 from synthpriv.privacy.mechanisms import DPSGD
 from synthpriv.utils import get_logger
 
@@ -215,6 +216,8 @@ class DPSGDGenerator(BaseSynthesizer):
         self._seed = int(random_state)
         torch.manual_seed(random_state)
         self.accounted_epsilon: float | None = None
+        self._disc_steps_accounted: int | None = None
+        self._disc_steps_actual: int = 0
         self._generator: _Generator | None = None
         self._encoder = ModeEncoder(num_modes=num_modes, clip_value=clip_value,
                                     condition_column=condition_column)
@@ -276,6 +279,7 @@ class DPSGDGenerator(BaseSynthesizer):
         logger.info("DP-GAN ajustando epsilon %s -> ruido %.3f (clipping %.2f)",
                     self._expected_noise(), bud.used_noise_multiplier, bud.max_grad_norm)
 
+        self._disc_steps_actual = 0
         for epoch in range(self.epochs):
             probe = _clone_discriminator(disc, self.hidden_dim, self.layers, self.dropout,
                                          self._encoder.total_dims, self._encoder.n_cond)
@@ -301,6 +305,7 @@ class DPSGDGenerator(BaseSynthesizer):
                     loss_d = loss_d + self.aux_lambda * (ce(aux_real, cond_idx) + ce(aux_fake, cond_idx))
                 loss_d.backward()
                 disc_opt.step()
+                self._disc_steps_actual += 1
 
                 z2 = torch.randn(b, self.latent_dim, device=DEVICE)
                 if ce is not None:
@@ -339,10 +344,12 @@ class DPSGDGenerator(BaseSynthesizer):
         eps = engine.get_epsilon(bud.delta)
         eps = eps[0] if isinstance(eps, tuple) else eps
         self.accounted_epsilon = float(eps)
+        self._disc_steps_accounted = int(sum(e[2] for e in engine.accountant.history))
         self._generator = generator
         self._fitted = True
-        logger.info("Epsilon acumulado real (RDP accountant): %.3f (objetivo %.3f)",
-                    self.accounted_epsilon, bud.epsilon)
+        logger.info("Epsilon acumulado real (RDP accountant): %.3f (objetivo %.3f) "
+                    "en %d pasos DP", self.accounted_epsilon, bud.epsilon,
+                    self._disc_steps_accounted)
         return self
 
     # ------------------------------------------------------------------
@@ -357,6 +364,14 @@ class DPSGDGenerator(BaseSynthesizer):
         with torch.no_grad():
             out = self._generator(z, cond_t).cpu().numpy()
         return self._encoder.inverse(out)
+
+    # ------------------------------------------------------------------
+    # aseguramiento DP
+    # ------------------------------------------------------------------
+    def assert_dp(self, declared_epsilon: float | None = None, *,
+                  tolerance: float = 0.05, delta: float | None = None) -> DpAssurance:
+        """Valida que la garantia DP declarada no se excede (pasos + presupuesto)."""
+        return assert_dp(self, declared_epsilon, tolerance=tolerance, delta=delta)
 
     # ------------------------------------------------------------------
     # persistencia: un fichero con config + encoder + pesos + contabilidad DP
@@ -394,6 +409,8 @@ class DPSGDGenerator(BaseSynthesizer):
             "privacy": self.privacy,
             "accounted_epsilon": self.accounted_epsilon,
             "n": getattr(self, "_n", None),
+            "disc_steps_accounted": getattr(self, "_disc_steps_accounted", None),
+            "disc_steps_actual": getattr(self, "_disc_steps_actual", 0),
             "encoder": self._encoder,
             "generator": self._generator.state_dict() if self._generator is not None else None,
         }
@@ -412,6 +429,8 @@ class DPSGDGenerator(BaseSynthesizer):
         obj._rng = np.random.default_rng(obj._seed)
         obj.accounted_epsilon = payload.get("accounted_epsilon")
         obj._n = payload.get("n")
+        obj._disc_steps_accounted = payload.get("disc_steps_accounted")
+        obj._disc_steps_actual = payload.get("disc_steps_actual", 0)
         obj._encoder = payload.get("encoder")
         obj._fitted = bool(payload.get("fitted"))
         if payload.get("generator") is not None:

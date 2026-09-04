@@ -153,5 +153,24 @@ def sweep(data, epsilons, delta, epochs, rows, output):
     click.echo(f"Informe guardado en {output}")
 
 
+@cli.command()
+@click.option("--model", "-m", "model", required=True, type=click.Path(exists=True, dir_okay=False),
+              help="Sintetizador guardado con 'synthpriv generate --save'.")
+@click.option("--tolerance", default=0.05, type=float, show_default=True,
+              help="Margen relativo permitido sobre el presupuesto declarado.")
+def dpcheck(model, tolerance):
+    """Valida que la garantia DP de un modelo persistido no se excede."""
+    synthesizer = PrivacyPreservingSynthesizer.load_model(model)
+    assurance = synthesizer.assert_dp(tolerance=tolerance)
+    click.echo(f"estado: {assurance.status}")
+    click.echo(f"ventana [epsilon medido, presupuesto]: {assurance.window}")
+    click.echo(f"pasos contabilizados/ejecutados: {assurance.accounted_steps}/{assurance.actual_private_steps} "
+               f"({'OK' if assurance.steps_match else 'NO'})")
+    click.echo(f"ruido: {assurance.noise_multiplier} | delta: {assurance.delta}")
+    for check in assurance.checks:
+        click.echo(f"  [{'OK' if check['status'] == 'ok' else 'X'}] {check['name']}: {check['detail']}")
+    click.echo(assurance.message)
+
+
 if __name__ == "__main__":  # pragma: no cover
     cli()

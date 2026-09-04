@@ -79,6 +79,10 @@ _TEMPLATE = """<!DOCTYPE html>
     {% else %}
       <p><span class="pill reported">Sin garantia formal de DP</span> {{ mech.notes }}</p>
     {% endif %}
+    {% set assurance = data.privacy_mechanism.assurance %}
+    {% if assurance %}
+      <p><span class="pill {{ 'passed' if assurance.status == 'ok' else 'failed' }}">DP {{ assurance.status }}</span> {{ assurance.message }}</p>
+    {% endif %}
   </div>
 
   <div class="card">

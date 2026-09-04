@@ -15,6 +15,7 @@ from synthpriv.generators.tabular import (
 )
 from synthpriv.dp.gan import DPSGDGenerator
 from synthpriv.pipeline import PrivacyPreservingSynthesizer
+from synthpriv.privacy.assurance import DpAssurance, assert_dp
 from synthpriv.privacy.mechanisms import DPSGD, NoPrivacy, PrivacyMechanism
 from synthpriv.sweep import SweepResult, run_epsilon_sweep
 
@@ -30,6 +31,8 @@ __all__ = [
     "DPSGDGenerator",
     "SweepResult",
     "run_epsilon_sweep",
+    "DpAssurance",
+    "assert_dp",
     "PrivacyMechanism",
     "NoPrivacy",
     "DPSGD",
