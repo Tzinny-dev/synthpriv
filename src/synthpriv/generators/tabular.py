@@ -7,6 +7,8 @@ interfaz ``BaseSynthesizer`` (fit/sample) y se registran en el registry.
 from __future__ import annotations
 
 import inspect
+import pickle
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -59,6 +61,39 @@ class _SDVWrapper(BaseSynthesizer):
     def sample(self, num_rows: int = 1000, **kwargs) -> pd.DataFrame:
         check_fitted(self)
         return self._model.sample(num_rows=num_rows, **kwargs)
+
+    def get_params(self) -> dict[str, Any]:
+        return dict(self._kwargs)
+
+    def save(self, path: str | Path) -> Path:
+        """Persiste modelo + metadata + kwargs en un unico fichero pickle."""
+        payload = {
+            "version": 1,
+            "class": self.__class__.__name__,
+            "name": self.name,
+            "fitted": self._fitted,
+            "metadata": self.metadata,
+            "kwargs": self._kwargs,
+            "model": self._model,
+        }
+        path = Path(path)
+        with path.open("wb") as fh:
+            pickle.dump(payload, fh)
+        return path
+
+    @classmethod
+    def load(cls, path: str | Path) -> "_SDVWrapper":
+        with Path(path).open("rb") as fh:
+            payload = pickle.load(fh)
+        if payload.get("name") != cls.name:
+            raise ValueError(
+                f"El fichero guarda '{payload.get('name')}', se esperaba '{cls.name}'."
+            )
+        obj = cls(metadata=payload.get("metadata"), **payload.get("kwargs", {}))
+        obj._model = payload.get("model")
+        obj._fitted = bool(payload.get("fitted"))
+        obj.metadata = payload.get("metadata")
+        return obj
 
 
 @register_generator("ctgan", description="Conditional Tabular GAN (datos mixtos numericos/categoricos)")

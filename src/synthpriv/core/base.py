@@ -8,6 +8,8 @@ La interfaz minima es ``fit`` + ``sample``, de modo que los callers
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -54,6 +56,22 @@ class BaseSynthesizer(ABC):
         """Atajo: ``fit`` + ``sample`` en un solo paso."""
         self.fit(data)
         return self.sample(num_rows=num_rows, **kwargs)
+
+    def get_params(self) -> dict[str, Any]:
+        """Parametros de configuracion reproducibles (para guardar/reesperar)."""
+        return {}
+
+    # ------------------------------------------------------------------
+    # persistencia
+    # ------------------------------------------------------------------
+    def save(self, path: str | Path) -> Path:
+        """Persiste el generador entrenado en ``path`` (formato por implementacion)."""
+        raise NotImplementedError(f"{self.__class__.__name__} no implementa save()")
+
+    @classmethod
+    def load(cls, path: str | Path) -> "BaseSynthesizer":
+        """Reconstruye un generador entrenado desde ``path``."""
+        raise NotImplementedError(f"{cls.__name__} no implementa load()")
 
     def __repr__(self) -> str:  # pragma: no cover - utilidad de depuracion
         return f"<{self.__class__.__name__} name={self.name!r} fitted={self.fitted}>"

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import torch
 
 from synthpriv.core.base import BaseSynthesizer
 from synthpriv.core.registry import build_generator, get_generator
@@ -172,6 +173,53 @@ class PrivacyPreservingSynthesizer:
             "timings": dict(self.timings),
         }
         return EvaluationReport(data=report_data)
+
+    # -- persistencia del sintetizador completo ----------------------------
+    def save_model(self, path: str | Path) -> Path:
+        """Persiste el sintetizador entrenado (generador + privacidad + metricas).
+
+        Genera ``path`` (el generador) y ``path.meta`` (config de privacidad,
+        epsilon medio y metricas). Al ``load_model`` no haria falta reentrenar.
+        """
+        path = Path(path)
+        generator_file = self.generator.save(path)
+        meta = {
+            "version": 1,
+            "generator_name": self.generator.name,
+            "privacy_mechanism": self.privacy_mechanism,
+            "effective_epsilon": self.accountant.get_epsilon(),
+            "privacy_metrics": self.privacy_metrics,
+            "utility_metrics": self.utility_metrics,
+            "metric_options": self.metric_options,
+            "timings": dict(self.timings),
+            "real_shape": getattr(self, "real_shape", None),
+        }
+        torch.save(meta, str(path) + ".meta")
+        logger.info("Sintetizador persistido en %s (epsilon medio %.3f)",
+                    path, meta["effective_epsilon"] or -1.0)
+        return generator_file
+
+    @classmethod
+    def load_model(cls, path: str | Path) -> "PrivacyPreservingSynthesizer":
+        """Reconstruye un sintetizador persistido con ``save_model`` (sin reentrenar)."""
+        path = Path(path)
+        meta = torch.load(str(path) + ".meta", map_location="cpu", weights_only=False)
+        spec = get_generator(meta["generator_name"])
+        generator = spec.cls.load(path)
+        synthesizer = cls(
+            generator=generator,
+            privacy_mechanism=meta["privacy_mechanism"],
+            privacy_metrics=meta.get("privacy_metrics"),
+            utility_metrics=meta.get("utility_metrics"),
+            metric_options=meta.get("metric_options") or {},
+        )
+        if meta.get("effective_epsilon") is not None:
+            synthesizer.accountant.set_effective_epsilon(meta["effective_epsilon"])
+        synthesizer.timings = dict(meta.get("timings") or {})
+        synthesizer.real_shape = meta.get("real_shape")
+        logger.info("Sintetizador recargado de %s (%s, epsilon medio %.3f)",
+                    path, meta["generator_name"], meta.get("effective_epsilon") or -1.0)
+        return synthesizer
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<PrivacyPreservingSynthesizer generator={self.generator.name}>"

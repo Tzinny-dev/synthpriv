@@ -38,7 +38,9 @@ def cli():
               help="Privacidad diferencial: entrena 'dp-gan' con DP-SGD y este presupuesto.")
 @click.option("--output", "-o", "output", default="synthetic.csv", type=click.Path(dir_okay=False),
               help="CSV de salida.")
-def generate(data, method, rows, epochs, epsilon, output):
+@click.option("--save", "save_model", default=None, type=click.Path(dir_okay=False),
+              help="Persistir el sintetizador entrenado en esta ruta (para 'synthpriv sample').")
+def generate(data, method, rows, epochs, epsilon, output, save_model):
     """Entrena un generador y produce datos sinteticos."""
     df = pd.read_csv(data)
     logger.info("Datos reales: %d filas x %d columnas", *df.shape)
@@ -59,10 +61,35 @@ def generate(data, method, rows, epochs, epsilon, output):
     )
     synthetic = synthesizer.generate(df, num_rows=rows)
     synthetic.to_csv(output, index=False)
+    if save_model:
+        model_path = synthesizer.save_model(save_model)
+        logger.info("Sintetizador guardado en %s", model_path)
     eps = synthesizer.accountant.get_epsilon()
     extra = f" | epsilon acumulado real %.3f" % eps if eps is not None else ""
     logger.info("Sinteticos generados en %s (%.2fs de entrenamiento)%s", output,
                 synthesizer.timings.get("fit_seconds", 0.0), extra)
+
+
+@cli.command()
+@click.option("--model", "-m", "model", required=True, type=click.Path(exists=True, dir_okay=False),
+              help="Sintetizador guardado con 'synthpriv generate --save'.")
+@click.option("--rows", "-n", "rows", default=1000, type=int, show_default=True,
+              help="Numero de filas sinteticas.")
+@click.option("--output", "-o", "output", default="synthetic.csv", type=click.Path(dir_okay=False),
+              help="CSV de salida.")
+def sample(model, rows, output):
+    """Genera filas desde un sintetizador persistido sin reentrenar.
+
+    Entrenar con DP cuesta una vez; recuperando el modelo se regenera el dataset
+    con la misma garantia de privacidad (accounted epsilon) en segundos.
+    """
+    synthesizer = PrivacyPreservingSynthesizer.load_model(model)
+    out = synthesizer.sample(rows)
+    out.to_csv(output, index=False)
+    eps = synthesizer.accountant.get_epsilon()
+    extra = f" | epsilon acumulado real %.3f" % eps if eps is not None else ""
+    logger.info("Muestreadas %d filas desde %s -> %s%s",
+                rows, model, output, extra)
 
 
 @cli.command()

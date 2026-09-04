@@ -19,6 +19,8 @@ acumulado real, que se expone en ``accounted_epsilon`` tras ``fit``.
 from __future__ import annotations
 
 import warnings
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -210,6 +212,7 @@ class DPSGDGenerator(BaseSynthesizer):
         self.aux_lambda = aux_lambda
         self.generator_steps = max(1, int(generator_steps))
         self._rng = np.random.default_rng(random_state)
+        self._seed = int(random_state)
         torch.manual_seed(random_state)
         self.accounted_epsilon: float | None = None
         self._generator: _Generator | None = None
@@ -354,3 +357,65 @@ class DPSGDGenerator(BaseSynthesizer):
         with torch.no_grad():
             out = self._generator(z, cond_t).cpu().numpy()
         return self._encoder.inverse(out)
+
+    # ------------------------------------------------------------------
+    # persistencia: un fichero con config + encoder + pesos + contabilidad DP
+    # ------------------------------------------------------------------
+    def get_params(self) -> dict[str, Any]:
+        return {
+            "epochs": self.epochs,
+            "latent_dim": self.latent_dim,
+            "hidden_dim": self.hidden_dim,
+            "layers": self.layers,
+            "learning_rate": self.learning_rate,
+            "batch_size": self.batch_size,
+            "dropout": self.dropout,
+            "num_modes": self.num_modes,
+            "clip_value": self.clip_value,
+            "condition_column": self.condition_column,
+            "aux_lambda": self.aux_lambda,
+            "generator_steps": self.generator_steps,
+            "random_state": int(self._seed),
+        }
+
+    def save(self, path: str | Path) -> Path:
+        """Persiste config + encoder + pesos + contabilidad DP en un fichero.
+
+        El epsilon acumulado real y el ruido aplicado se conservan: al recargar,
+        la garantia DP declarada es la misma que cuando se entreno.
+        """
+        path = Path(path)
+        payload = {
+            "version": 2,
+            "class": self.__class__.__name__,
+            "name": self.name,
+            "fitted": self._fitted,
+            "params": self.get_params(),
+            "privacy": self.privacy,
+            "accounted_epsilon": self.accounted_epsilon,
+            "n": getattr(self, "_n", None),
+            "encoder": self._encoder,
+            "generator": self._generator.state_dict() if self._generator is not None else None,
+        }
+        torch.save(payload, path)
+        return path
+
+    @classmethod
+    def load(cls, path: str | Path, **overrides) -> "DPSGDGenerator":
+        """Reconstruye un generador entrenado y su contabilidad DP desde ``path``."""
+        payload = torch.load(path, map_location="cpu", weights_only=False)
+        params = dict(payload.get("params", {}))
+        params.update(overrides)
+        privacy = payload.get("privacy")
+        obj = cls(privacy=privacy, **params)
+        obj._seed = params.get("random_state", 0)
+        obj._rng = np.random.default_rng(obj._seed)
+        obj.accounted_epsilon = payload.get("accounted_epsilon")
+        obj._n = payload.get("n")
+        obj._encoder = payload.get("encoder")
+        obj._fitted = bool(payload.get("fitted"))
+        if payload.get("generator") is not None:
+            generator = _Generator(obj.latent_dim, obj.hidden_dim, obj._encoder, obj.layers)
+            generator.load_state_dict(payload["generator"])
+            obj._generator = generator
+        return obj
