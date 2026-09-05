@@ -12,6 +12,8 @@ import pandas as pd
 from scipy.stats import norm
 from sklearn.mixture import GaussianMixture
 
+from synthpriv.privacy.dpecdf import DPEcdf
+
 
 class TabularEncoder:
     """Transforma un DataFrame a un array continuo y lo reconstruye.
@@ -118,13 +120,20 @@ class ModeEncoder:
 
     def __init__(self, num_modes: int = 5, clip_value: float = 3.0,
                  condition_column: str | None = None,
-                 numeric: str = "mode"):
+                 numeric: str = "mode",
+                 dp_ecdf_epsilon: float | None = None,
+                 ecdf_bins: int = 200):
         self.num_modes = max(1, int(num_modes))
         self.clip_value = float(clip_value)
         self.condition_column = condition_column
         self.numeric = numeric
         if numeric not in ("mode", "uniform"):
             raise ValueError(f"numeric debe ser 'mode' o 'uniform', se recibio {numeric!r}")
+        if dp_ecdf_epsilon is not None and numeric != "uniform":
+            raise ValueError("dp_ecdf_epsilon solo se aplica con numeric='uniform'")
+        self.dp_ecdf_epsilon = float(dp_ecdf_epsilon) if dp_ecdf_epsilon is not None else None
+        self.ecdf_bins = max(2, int(ecdf_bins))
+        self.ecdf_epsilon = None  # presupuesto total consumido por marginales DP (tras fit)
         self.columns: list[str] = []
         self.num_columns: list[str] = []
         self.cat_columns: list[str] = []
@@ -143,14 +152,19 @@ class ModeEncoder:
         self.cat_columns = [c for c in data.columns if c not in num_mask]
 
         pos = 0
+        n_num = len(self.num_columns)
+        col_eps = self.dp_ecdf_epsilon / n_num if self.dp_ecdf_epsilon else None
         for col in self.num_columns:
             v = data[col].astype(float).to_numpy()
             if self.numeric == "uniform":
-                self.blocks.append({
+                block = {
                     "type": "num", "col": col, "val": pos, "kind": "uniform",
                     "min": float(np.min(v)), "max": float(np.max(v)),
                     "values": np.sort(v), "n": len(v),
-                })
+                }
+                if col_eps is not None:
+                    block["ecdf"] = DPEcdf(epsilon=col_eps, bins=self.ecdf_bins).fit(v)
+                self.blocks.append(block)
                 pos += 1
                 continue
             n_unique = len(np.unique(v))
@@ -187,6 +201,7 @@ class ModeEncoder:
                                "end": pos + len(cats), "categories": cats})
             pos += len(cats)
         self.total_dims = pos
+        self.ecdf_epsilon = self.dp_ecdf_epsilon
 
         self._fit_condition(data)
         return self
@@ -257,6 +272,9 @@ class ModeEncoder:
             if b["type"] == "num":
                 if b.get("kind") == "uniform":
                     u = norm.cdf(X[:, b["val"]])
+                    if b.get("ecdf") is not None:
+                        frame[b["col"]] = b["ecdf"].quantile(u)
+                        continue
                     f = np.clip(u * (b["n"] - 1), 0.0, b["n"] - 1)
                     i = np.floor(f).astype(int)
                     i = np.clip(i, 0, b["n"] - 2)

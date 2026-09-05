@@ -122,6 +122,46 @@ def test_uniform_rectify_preserves_rank_dependence(real_data):
     assert abs(rho_after - rho_before) < 1e-3
 
 
+def test_dpecdf_quantile_health():
+    """La ECDF privada reconstruye los cuantiles (mediana/cola) de forma monotona."""
+    from synthpriv import DPEcdf
+    rng = np.random.default_rng(0)
+    v = rng.gamma(3.0, 5000.0, 4000)
+    ecdf = DPEcdf(epsilon=2.0, bins=400).fit(v, rng=default_num_rng())
+    med = ecdf.quantile(np.array([0.5]))[0]
+    assert np.isfinite(med) and abs(med - np.median(v)) / np.median(v) < 0.25
+    u = np.linspace(0.01, 0.99, 99)
+    q = ecdf.quantile(u)
+    assert ((q[1:] - q[:-1]) >= 0).all()
+    assert ecdf.epsilon == 2.0
+    assert ecdf.report()["dp"] is True
+
+
+def default_num_rng():
+    return np.random.default_rng(0)
+
+
+def test_encoder_uniform_with_dpecdf(real_data):
+    """Con dp_ecdf_epsilon, el inverso usa la ECDF privada: marginales cercanos
+    a los reales, presupuesto registrado y sin excepciones."""
+    from scipy import stats
+    enc = ModeEncoder(num_modes=3, numeric="uniform",
+                      dp_ecdf_epsilon=6.0, ecdf_bins=120).fit(real_data)
+    assert enc.ecdf_epsilon == 6.0
+    X = np.random.default_rng(0).standard_normal((2000, enc.total_dims)).astype(np.float32)
+    out = enc.inverse(enc.rectify(X.copy()))
+    for col in real_data.select_dtypes(include=[np.number]).columns:
+        p = stats.ks_2samp(real_data[col], out[col]).pvalue
+        assert p > 0.05, f"{col}: ks p={p}"  # DP-ECDF pierde algo vs ECDF cruda
+    num_blocks = [b for b in enc.blocks if b["type"] == "num" and b.get("kind") == "uniform"]
+    assert all(b["ecdf"] is not None for b in num_blocks)
+
+
+def test_encoder_dpecdf_requires_uniform():
+    with pytest.raises(ValueError):
+        ModeEncoder(num_modes=3, numeric="mode", dp_ecdf_epsilon=1.0)
+
+
 @pytest.mark.slow
 def test_dpsgd_generator_fit_and_sample(real_data):
     """Entrenamiento DP con presupuesto holgado para que termine rapido."""
@@ -133,6 +173,31 @@ def test_dpsgd_generator_fit_and_sample(real_data):
     assert set(real_data.columns) <= set(out.columns)
     assert gen.accounted_epsilon is not None
     assert gen.accounted_epsilon <= 30.0 * 1.5  # cercano al presupuesto (RDP puede superarlo ligeramente)
+
+
+@pytest.mark.slow
+def test_dp_ecdf_pipeline_reports_total(real_data, tmp_path):
+    """dp-gan con DP-ECDF: el informe compone entrenamiento + marginales."""
+    privacy = DPSGD(epsilon=30.0, delta=1e-3)
+    synth = PrivacyPreservingSynthesizer(
+        generator_key="dp-gan",
+        generator_kwargs={"epochs": 2, "batch_size": 64, "latent_dim": 16, "hidden_dim": 32,
+                          "numeric": "uniform", "rectify_marginals": True,
+                          "ecdf_epsilon": 2.0, "privacy": privacy},
+        privacy_mechanism=privacy,
+        utility_metrics=["ks_test"],
+        privacy_metrics=["nndr"],
+    )
+    gen_out = synth.generate(real_data, num_rows=40)
+    assert len(gen_out) == 40
+    report = synth.evaluate(real_data, gen_out)
+    acc = report.data["privacy_mechanism"]["accountant"]
+    assert acc["ecdf_epsilon"] == 2.0
+    base = synth.accountant.get_epsilon()
+    assert base is not None and acc["total_epsilon"] == pytest.approx(base + 2.0)
+    p = synth.save_model(tmp_path / "ecdf_model.sz")
+    loaded = PrivacyPreservingSynthesizer.load_model(p)
+    assert loaded.generator.ecdf_epsilon == 2.0
 
 
 @pytest.mark.slow

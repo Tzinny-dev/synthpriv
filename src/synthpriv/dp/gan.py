@@ -183,6 +183,14 @@ class DPSGDGenerator(BaseSynthesizer):
     generator_steps:
         Pasos del generador por paso del discriminador (el presupuesto DP solo
         cuenta el discriminador).
+    ecdf_epsilon:
+        Presupuesto DP para las ECDF de marginales (solo con ``numeric="uniform"``).
+        Se reparte equitativamente entre columnas numericas (histograma Laplace,
+        composicion paralela por bins y secuencial entre columnas). La garantia
+        total del sintetizador es la composicion secuencial de este presupuesto
+        con el del entrenamiento: ``epsilon_total = epsilon(acumulado) + ecdf_epsilon``
+        (el informe lo expone en ``accountant.ecdf_epsilon``/``total_epsilon``).
+        ``None`` usa la ECDF empirica cruda (sin garantia formal en el marginal).
     """
 
     name = "dp-gan"
@@ -205,6 +213,8 @@ class DPSGDGenerator(BaseSynthesizer):
         generator_steps: int = 2,
         numeric: str = "mode",
         rectify_marginals: bool = False,
+        ecdf_epsilon: float | None = None,
+        ecdf_bins: int = 200,
         label_smoothing: float = 0.0,
         random_state: int = 0,
         **kwargs,
@@ -235,7 +245,10 @@ class DPSGDGenerator(BaseSynthesizer):
         self._generator: _Generator | None = None
         self._encoder = ModeEncoder(num_modes=num_modes, clip_value=clip_value,
                                     condition_column=condition_column,
-                                    numeric=self.numeric)
+                                    numeric=self.numeric,
+                                    dp_ecdf_epsilon=ecdf_epsilon,
+                                    ecdf_bins=ecdf_bins)
+        self.ecdf_epsilon = self._encoder.dp_ecdf_epsilon
 
     # ------------------------------------------------------------------
     # entrenamiento DP
@@ -410,6 +423,8 @@ class DPSGDGenerator(BaseSynthesizer):
             "generator_steps": self.generator_steps,
             "numeric": self.numeric,
             "rectify_marginals": self.rectify_marginals,
+            "ecdf_epsilon": self.ecdf_epsilon,
+            "ecdf_bins": self._encoder.ecdf_bins,
             "label_smoothing": self.label_smoothing,
             "random_state": int(self._seed),
         }

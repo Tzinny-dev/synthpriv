@@ -178,6 +178,17 @@ class PrivacyPreservingSynthesizer:
         except KeyError:
             spec = getattr(self.generator, "name", "unknown")
 
+        acc = self.accountant.report()
+        ecdf_eps = getattr(self.generator, "ecdf_epsilon", None)
+        if ecdf_eps is not None:
+            acc["ecdf_epsilon"] = float(ecdf_eps)
+            base = acc.get("effective_epsilon")
+            acc["total_epsilon"] = (base + float(ecdf_eps)) if base is not None else float(ecdf_eps)
+            acc["explanation"] = (
+                "Epsilon total = DP-SGD del entrenamiento + DP-ECDF de marginales "
+                "(composicion secuencial)."
+            )
+
         report_data = {
             "generator": {
                 "key": getattr(self.generator, "name", None),
@@ -186,7 +197,7 @@ class PrivacyPreservingSynthesizer:
             "rows": {"real": len(real_data), "synthetic": len(synthetic_data)},
             "privacy_mechanism": {
                 "configured": self.privacy_mechanism.get_report(),
-                "accountant": self.accountant.report(),
+                "accountant": acc,
                 "assurance": self.assert_dp().as_dict(),
             },
             "utility": utility,
@@ -210,6 +221,7 @@ class PrivacyPreservingSynthesizer:
             "generator_name": self.generator.name,
             "privacy_mechanism": self.privacy_mechanism,
             "effective_epsilon": self.accountant.get_epsilon(),
+            "ecdf_epsilon": getattr(self.generator, "ecdf_epsilon", None),
             "privacy_metrics": self.privacy_metrics,
             "utility_metrics": self.utility_metrics,
             "metric_options": self.metric_options,

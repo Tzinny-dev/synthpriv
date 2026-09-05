@@ -37,12 +37,17 @@ def cli():
 @click.option("--epochs", default=300, type=int, show_default=True, help="Epochs de entrenamiento.")
 @click.option("--epsilon", default=None, type=float,
               help="Privacidad diferencial: entrena 'dp-gan' con DP-SGD y este presupuesto.")
+@click.option("--ecdf-epsilon", default=None, type=float,
+              help="Presupuesto DP extra para las ECDF de marginales del dp-gan "
+                   "(solo con DP; requiere numericas 'uniform').")
 @click.option("--output", "-o", "output", default="synthetic.csv", type=click.Path(dir_okay=False),
               help="CSV de salida.")
 @click.option("--save", "save_model", default=None, type=click.Path(dir_okay=False),
               help="Persistir el sintetizador entrenado en esta ruta (para 'synthpriv sample').")
-def generate(data, method, rows, epochs, epsilon, output, save_model):
+def generate(data, method, rows, epochs, epsilon, ecdf_epsilon, output, save_model):
     """Entrena un generador y produce datos sinteticos."""
+    if ecdf_epsilon is not None and epsilon is None:
+        raise click.ClickException("--ecdf-epsilon requiere --epsilon (modo DP con dp-gan).")
     df = pd.read_csv(data)
     logger.info("Datos reales: %d filas x %d columnas", *df.shape)
 
@@ -50,7 +55,13 @@ def generate(data, method, rows, epochs, epsilon, output, save_model):
         privacy = DPSGD(epsilon=epsilon)
         method = "dp-gan"
         generator_kwargs: dict = {"epochs": epochs, "privacy": privacy}
+        if ecdf_epsilon is not None:
+            generator_kwargs.update(numeric="uniform", rectify_marginals=True,
+                                    ecdf_epsilon=ecdf_epsilon)
         logger.info("Modo DP activo: generador 'dp-gan' con epsilon objetivo %.3f", epsilon)
+        if ecdf_epsilon is not None:
+            logger.info("  + DP-ECDF de marginales: epsilon total = %.3f + %.3f",
+                        epsilon, ecdf_epsilon)
     else:
         privacy = NoPrivacy()
         generator_kwargs = {"epochs": epochs}

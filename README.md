@@ -20,6 +20,7 @@ El proyecto se desarrolla por fases acumulativas, cada una con su batería de te
 | 7 | `90b485f` | Docs + demo reproducible end-to-end (README, `examples/demo.py`) |
 | 8 | `e979fb7` | Benchmark `dp-gan` vs baselines SDV sin DP (curvas de utilidad + gap) |
 | 9 | `6001540` | Endurecimiento de utilidad del `dp-gan`: `numeric="uniform"` (gaussianización + cuantil interpolado), `rectify_marginals` (KS garantizado), `label_smoothing`; diagnóstico y límites documentados |
+| 10 | *(esta fase)* | `DPEcdf`: ECDF de marginales con historia Laplace (ε por columna, composición paralela por bins); `ecdf_epsilon` con composición secuencial con el entrenamiento (`total_epsilon` en el informe) |
 
 ## Instalación
 
@@ -146,6 +147,13 @@ Solo el discriminador ve datos reales y entrena con DP-SGD. Hiperparámetros rel
 - `generator_steps` (2) — pasos del generador por paso del discriminador (el presupuesto DP
   solo cuenta el discriminador).
 - `label_smoothing` (0.0) — suavizado de etiquetas del discriminador; útil para estabilizar.
+- `ecdf_epsilon` (`None`) — presupuesto DP de los **marginales** (solo con `numeric="uniform"`):
+  construye una ECDF privada por columna (histograma Laplace, ε por columna = `ecdf_epsilon /
+  nº numéricas`, composición paralela por bins). La garantía **total** del sintetizador es la
+  composición secuencial `epsilon(acumulado) + ecdf_epsilon`, que el informe expone en
+  `accountant.ecdf_epsilon` / `accountant.total_epsilon`. Con `None` la ECDF es la empírica
+  cruda (sin garantía formal en el marginal). En CLI: `synthpriv generate --epsilon E
+  --ecdf-epsilon EE`.
 
 Resultados de la fase de endurecimiento (dataset tabular con correlaciones reales,
 1500 filas, `numeric="uniform"` + `rectify_marginals`): KS ≈ 1.0 en los tres numéricos
@@ -179,6 +187,10 @@ es lo que menos aprende un DP-GAN MLP en datasets pequeños (ver Limitaciones).
   imágenes ni secuencias.
 - La garantía DP depende del accountant RDP de Opacus y del muestreo de Poisson; auditoría
   formal con librerías dedicadas queda fuera de alcance.
+- Con `ecdf_epsilon`, el presupuesto de marginales se reparte **equitativamente entre
+  columnas** y el soporte de cada ECDF se recorta a los cuantiles empíricos 0.001/0.999
+  (+margen): los extremos exactos no se emiten ni se publican, a cambio de un ligero recorte
+  del rango generado.
 - Aunque `dp-gan` respeta el presupuesto, la utilidad real a ε bajo depende del dataset
   (ver el barrido `synthpriv sweep`).
 - La estructura de dependencia (correlaciones) es el punto débil del `dp-gan`: en datasets
