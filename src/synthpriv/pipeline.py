@@ -179,6 +179,9 @@ class PrivacyPreservingSynthesizer:
             spec = getattr(self.generator, "name", "unknown")
 
         acc = self.accountant.report()
+        # claves siempre presentes (jinja trata `undefined is not none` como true)
+        acc.setdefault("ecdf_epsilon", None)
+        acc.setdefault("total_epsilon", None)
         ecdf_eps = getattr(self.generator, "ecdf_epsilon", None)
         if ecdf_eps is not None:
             acc["ecdf_epsilon"] = float(ecdf_eps)
