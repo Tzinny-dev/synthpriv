@@ -126,37 +126,46 @@ def assert_dp(
                    "mecanismo no DP o epsilon sin medir")
         return assurance
 
-    # -- 2. integridad de pasos --------------------------------------------
+    # -- 2. integridad de pasos (solo mecanismos secuenciales tipo DP-SGD) --
     accounted = getattr(generator, "_disc_steps_accounted", None)
     actual = getattr(generator, "_disc_steps_actual", None)
-    if accounted is None or actual is None:
+    steps_applicable = getattr(generator, "name", "") == "dp-gan" or (
+        accounted is not None and actual is not None)
+    if not steps_applicable:
+        # dp-copula y similares: garantia por composicion de mecanismos puros
+        assurance.steps_match = True
+        _add_check(assurance, "pasos_dp", True,
+                   "mecanismo DP composicional sin pasos secuenciales (no aplica "
+                   "veredicto de pasos Opacus)")
+    elif accounted is None or actual is None:
         assurance.steps_match = False
         _add_check(assurance, "pasos_dp", False,
                    "sin contadores de pasos (¿se entreno con esta version?)")
         assurance.message = "No se pudo verificar la integridad de pasos DP."
         return assurance
-    assurance.accounted_steps = accounted
-    assurance.actual_private_steps = actual
-    assurance.steps_match = actual == accounted
-    if actual > accounted:
-        _add_check(assurance, "pasos_dp", False,
-                   f"{actual} pasos ejecutados > {accounted} contabilizados: "
-                   "hay pasos no registrados que filtran datos.")
-        assurance.message = (
-            f"ALERTA: {actual} pasos del discriminador ejecutados frente a "
-            f"{accounted} contabilizados. La garantia RDP queda viciada."
-        )
-        return assurance
-    if actual < accounted:
-        _add_check(assurance, "pasos_dp", False,
-                   f"{actual} pasos ejecutados < {accounted} contabilizados: "
-                   "se declara mas privacidad de la realmente consumida.")
-        assurance.message = (
-            f"Los pasos ejecutados ({actual}) difieren de los contabilizados "
-            f"({accounted}); la cota no es exacta."
-        )
-        return assurance
-    _add_check(assurance, "pasos_dp", True, f"{accounted} pasos todos contabilizados")
+    else:
+        assurance.accounted_steps = accounted
+        assurance.actual_private_steps = actual
+        assurance.steps_match = actual == accounted
+        if actual > accounted:
+            _add_check(assurance, "pasos_dp", False,
+                       f"{actual} pasos ejecutados > {accounted} contabilizados: "
+                       "hay pasos no registrados que filtran datos.")
+            assurance.message = (
+                f"ALERTA: {actual} pasos del discriminador ejecutados frente a "
+                f"{accounted} contabilizados. La garantia RDP queda viciada."
+            )
+            return assurance
+        if actual < accounted:
+            _add_check(assurance, "pasos_dp", False,
+                       f"{actual} pasos ejecutados < {accounted} contabilizados: "
+                       "se declara mas privacidad de la realmente consumida.")
+            assurance.message = (
+                f"Los pasos ejecutados ({actual}) difieren de los contabilizados "
+                f"({accounted}); la cota no es exacta."
+            )
+            return assurance
+        _add_check(assurance, "pasos_dp", True, f"{accounted} pasos todos contabilizados")
 
     # -- 3. presupuesto respetado -------------------------------------------
     if declared is None:
@@ -182,10 +191,13 @@ def assert_dp(
             note = (f" (valida el DP-SGD del entrenamiento; total del sintetizador = "
                     f"{measured:.3f} + {ecdf} = {measured + float(ecdf):.3f} con DP-ECDF, "
                     f"ver informe)")
+        if steps_applicable:
+            _pasos = f"{accounted} pasos contabilizados y ejecutados, ruido {_noise:.3f}"
+        else:
+            _pasos = "garantia por composicion de mecanismos puros (ver componente epsilons en informe)"
         assurance.message = (
             f"Garantia DP validada: epsilon RDP {measured:.3f} "
-            f"(ventana [{measured:.3f}, {declared}]), {accounted} pasos "
-            f"contabilizados y ejecutados, ruido {_noise:.3f}.{note}"
+            f"(ventana [{measured:.3f}, {declared}]), {_pasos}.{note}"
         )
     else:
         assurance.message = (

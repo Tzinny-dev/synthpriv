@@ -185,6 +185,79 @@ def test_dpecdf_data_derived_range_warns():
         DPEcdf(epsilon=1.0, bins=50).fit(np.linspace(0, 10, 100))
 
 
+def test_dp_copula_fit_sample_and_eps():
+    from synthpriv import DPCopulaGenerator, DPSGD
+    rng = np.random.default_rng(0)
+    n = 300
+    z = rng.multivariate_normal([0.0, 0.0, 0.5],
+                                [[1.0, 0.6, 0.2], [0.6, 1.0, 0.1], [0.2, 0.1, 1.0]], size=n)
+    df = pd.DataFrame({"age": np.exp(1 + 0.3 * z[:, 0]),
+                       "income": np.exp(8 + 0.5 * z[:, 1]),
+                       "score": np.clip(50 + 20 * z[:, 2], 0, 100),
+                       "city": rng.choice(["A", "B", "C"], n, p=[0.5, 0.3, 0.2])})
+    g = DPCopulaGenerator(privacy=DPSGD(epsilon=6.0), random_state=1)
+    g.fit(df)
+    syn = g.sample(500)
+    assert syn.shape == (500, 4)
+    assert g.accounted_epsilon == 6.0
+    assert abs(g.components["margins"] + g.components["corr"] + g.components["cats"] - 6.0) < 1e-9
+    assert np.isfinite(syn.select_dtypes("number").to_numpy()).all()
+    assert set(g.cat_columns) == {"city"} and set(g.num_columns) == {"age", "income", "score"}
+
+
+def test_dp_copula_recovers_dependence():
+    from synthpriv import DPCopulaGenerator, DPSGD
+    rng = np.random.default_rng(42)
+    n = 800
+    z = rng.multivariate_normal([0.0, 0.0],
+                                [[1.0, 0.6], [0.6, 1.0]], size=n)
+    df = pd.DataFrame({"age": np.exp(1 + 0.3 * z[:, 0]),
+                       "income": np.exp(8 + 0.5 * z[:, 1])})
+    g = DPCopulaGenerator(privacy=DPSGD(epsilon=6.0), margins_fraction=0.2,
+                          corr_fraction=0.8, random_state=3)
+    g.fit(df)
+    syn = g.sample(3000)
+    r_real = df["age"].corr(df["income"])
+    r_syn = syn["age"].corr(syn["income"])
+    assert r_real > 0.5
+    assert abs(r_syn - r_real) < 0.25, f"corr real {r_real:.3f} vs sintetica {r_syn:.3f}"
+
+
+def test_dp_copula_assert_dp_ok():
+    from synthpriv import DPCopulaGenerator, DPSGD, DpAssurance, assert_dp
+    rng = np.random.default_rng(7)
+    n = 200
+    df = pd.DataFrame({"a": rng.normal(size=n), "b": rng.normal(size=n),
+                       "cat": rng.choice(["x", "y"], n)})
+    g = DPCopulaGenerator(privacy=DPSGD(epsilon=2.0)).fit(df)
+    a = assert_dp(g, 2.0)  # tipo DpAssurance
+    assert isinstance(a, DpAssurance)
+    assert a.ok() is True
+    assert a.steps_match is True  # valido por composicion, no por pasos Opacus
+    assert a.measured_epsilon == 2.0
+
+
+def test_dp_copula_requires_dp_mechanism():
+    from synthpriv import DPCopulaGenerator, NoPrivacy
+    with pytest.raises(ValueError):
+        DPCopulaGenerator(privacy=NoPrivacy())
+
+
+def test_dp_copula_save_load_roundtrip(tmp_path):
+    from synthpriv import DPCopulaGenerator, DPSGD
+    rng = np.random.default_rng(0)
+    a = rng.normal(size=200)
+    b = rng.normal(size=200) + 0.5 * a
+    df = pd.DataFrame({"a": a, "b": b})
+    g = DPCopulaGenerator(privacy=DPSGD(epsilon=2.0), random_state=5).fit(df)
+    p = g.save(tmp_path / "copula.pt")
+    g2 = DPCopulaGenerator.load(p)
+    assert g2.accounted_epsilon == 2.0
+    assert g2.components == g.components
+    syn = g2.sample(100)
+    assert syn.shape == (100, 2)
+
+
 def test_encoder_uniform_with_dpecdf_public_bounds(real_data):
     from synthpriv import DPEcdf
     enc = ModeEncoder(num_modes=3, numeric="uniform",

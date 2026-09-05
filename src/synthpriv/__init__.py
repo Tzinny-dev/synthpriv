@@ -14,6 +14,7 @@ from synthpriv.generators.tabular import (
     TVAEGenerator,
 )
 from synthpriv.dp.gan import DPSGDGenerator
+from synthpriv.dp.copula import DPCopulaGenerator
 from synthpriv.pipeline import PrivacyPreservingSynthesizer
 from synthpriv.privacy.assurance import DpAssurance, assert_dp
 from synthpriv.privacy.mechanisms import DPSGD, NoPrivacy, PrivacyMechanism
@@ -31,6 +32,7 @@ __all__ = [
     "CopulaGANGenerator",
     "GaussianCopulaGenerator",
     "DPSGDGenerator",
+    "DPCopulaGenerator",
     "SweepResult",
     "run_epsilon_sweep",
     "BenchmarkResult",

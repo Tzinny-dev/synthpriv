@@ -53,15 +53,28 @@ def generate(data, method, rows, epochs, epsilon, ecdf_epsilon, output, save_mod
 
     if epsilon is not None:
         privacy = DPSGD(epsilon=epsilon)
-        method = "dp-gan"
-        generator_kwargs: dict = {"epochs": epochs, "privacy": privacy}
-        if ecdf_epsilon is not None:
-            generator_kwargs.update(numeric="uniform", rectify_marginals=True,
-                                    ecdf_epsilon=ecdf_epsilon)
-        logger.info("Modo DP activo: generador 'dp-gan' con epsilon objetivo %.3f", epsilon)
-        if ecdf_epsilon is not None:
-            logger.info("  + DP-ECDF de marginales: epsilon total = %.3f + %.3f",
-                        epsilon, ecdf_epsilon)
+        generator_kwargs: dict = {"privacy": privacy}
+        if method == "dp-copula":
+            logger.info("Modo DP activo: copula gaussiana privada (dp-copula) "
+                        "con epsilon total %.3f", epsilon)
+            if ecdf_epsilon is not None:
+                raise click.ClickException(
+                    "--ecdf-epsilon es del dp-gan; en dp-copula el presupuesto "
+                    "se divide en marginales/copula/explicita.")
+        elif method == "dp-gan":
+            generator_kwargs.update(epochs=epochs)
+            if ecdf_epsilon is not None:
+                generator_kwargs.update(numeric="uniform", rectify_marginals=True,
+                                        ecdf_epsilon=ecdf_epsilon)
+                logger.info("  + DP-ECDF de marginales: epsilon total = %.3f + %.3f",
+                            epsilon, ecdf_epsilon)
+            logger.info("Modo DP activo: generador 'dp-gan' con epsilon objetivo %.3f", epsilon)
+        else:
+            fallback = method
+            method = "dp-gan"  # solo los generadores DP-capable entrenan con privacidad
+            generator_kwargs.update(epochs=epochs)
+            logger.info("Modo DP activo: generador 'dp-gan' (el %r no es DP-capable)",
+                        fallback)
     else:
         privacy = NoPrivacy()
         generator_kwargs = {"epochs": epochs}

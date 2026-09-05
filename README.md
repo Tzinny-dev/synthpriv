@@ -20,7 +20,8 @@ El proyecto se desarrolla por fases acumulativas, cada una con su batería de te
 | 7 | `90b485f` | Docs + demo reproducible end-to-end (README, `examples/demo.py`) |
 | 8 | `e979fb7` | Benchmark `dp-gan` vs baselines SDV sin DP (curvas de utilidad + gap) |
 | 9 | `6001540` | Endurecimiento de utilidad del `dp-gan`: `numeric="uniform"` (gaussianización + cuantil interpolado), `rectify_marginals` (KS garantizado), `label_smoothing`; diagnóstico y límites documentados |
-| 10 | *(esta fase)* | `DPEcdf`: ECDF de marginales con historia Laplace (ε por columna, composición paralela por bins); `ecdf_epsilon` con composición secuencial con el entrenamiento (`total_epsilon` en el informe) |
+| 10 | `0194a23` | `DPEcdf`: ECDF de marginales con historia Laplace (ε por columna, composición paralela por bins); `ecdf_epsilon` con composición secuencial con el entrenamiento (`total_epsilon` en el informe) |
+| 11 | *(esta fase)* | `dp-copula`: cópula gaussiana privada (DP pura, δ=0) — corriendo la dependencia, el punto débil del `dp-gan` |
 
 ## Instalación
 
@@ -113,7 +114,8 @@ regenera y ejecuta `assert_dp`. Artefactos en `/tmp/synthpriv_demo/`.
 ### Mecanismos
 
 - `NoPrivacy()` — sin garantía formal (solo mitigación empírica + métricas de riesgo).
-- `DPSGD(epsilon=1.0, delta=1e-5)` — DP-SGD (Opacus) con el generador `dp-gan`.
+- `DPSGD(epsilon=1.0, delta=1e-5)` — DP-SGD (Opacus) con el generador `dp-gan`; también
+  configura el presupuesto total del generador `dp-copula` (que es DP pura, δ=0).
   `noise_multiplier`: si se fija se usa ese ruido; si no, Opacus lo calcula para alcanzar
   el presupuesto. Tras entrenar, `used_noise_multiplier` guarda el aplicado.
 
@@ -126,6 +128,18 @@ regenera y ejecuta `assert_dp`. Artefactos en `/tmp/synthpriv_demo/`.
 | `tvae` | Autoencoder variacional tabular (SDV) | no |
 | `copula-gan` | GAN con normalización cópula (SDV) | no |
 | `dp-gan` | GAN MLP propia con DP-SGD y condicionamiento AC-GAN | sí |
+| `dp-copula` | Cópula gaussiana privada: ECDF Laplace + correlación privada (rápida) | sí |
+
+### `dp-copula`
+
+Modelo paramétrico que ataca el punto débil del `dp-gan` (la estructura de dependencia)
+con **DP pura** (δ=0, todos los sub-mecanismos son Laplace). El presupuesto total se reparte
+en `margins_fraction` (≈ default 0.4, ECDF privadas por columna), `corr_fraction`
+(≈ default 0.4, matriz de correlación perturbada con Laplace entrada a entrada y proyectada
+a PSD) y el resto en frecuencias categóricas. En datasets numéricos puros todo el sobrante
+va a la cópula. Benchmark sobre datos correlacionados: correlación aprendida ≈0.61 frente a
+0.60 real (dp-gan ≈0.72-0.83) con ε=1-5. En CLI:
+`synthpriv generate --method dp-copula --epsilon E`.
 
 ### `dp-gan`
 

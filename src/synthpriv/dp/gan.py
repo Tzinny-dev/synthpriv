@@ -370,7 +370,8 @@ class DPSGDGenerator(BaseSynthesizer):
 
             if epoch % max(1, self.epochs // 5) == 0:
                 logger.debug("epoch %d/%d  loss_d=%.3f loss_g=%.3f cond_ce=%.3f",
-                             epoch + 1, self.epochs, loss_d.item(), loss_g.item(), loss_cond_epoch)
+                             epoch + 1, self.epochs, loss_d.item(), loss_g.item(),
+                             loss_cond_epoch if ce is not None else float("nan"))
 
         eps = engine.get_epsilon(bud.delta)
         eps = eps[0] if isinstance(eps, tuple) else eps
