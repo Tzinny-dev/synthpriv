@@ -17,7 +17,9 @@ El proyecto se desarrolla por fases acumulativas, cada una con su batería de te
 | 4 | `1dc5108` | Barrido `epsilon ↔ utilidad` (curva privacidad/utilidad) |
 | 5 | `2c2b05e` | Serialización: `save_model` / `load_model` (regenerar sin reentrenar) |
 | 6 | `603445f` | `assert_dp`: validación de integridad de pasos DP y presupuesto ε |
-| 7 | *(próxima)* | Benchmark `dp-gan` vs baselines SDV sin DP (curvas de utilidad + gap) |
+| 7 | `90b485f` | Docs + demo reproducible end-to-end (README, `examples/demo.py`) |
+| 8 | `e979fb7` | Benchmark `dp-gan` vs baselines SDV sin DP (curvas de utilidad + gap) |
+| 9 | *(esta fase)* | Endurecimiento de utilidad del `dp-gan`: `numeric="uniform"` (gaussianización + cuantil interpolado), `rectify_marginals` (KS garantizado), `label_smoothing`; diagnóstico y límites documentados |
 
 ## Instalación
 
@@ -130,11 +132,26 @@ Solo el discriminador ve datos reales y entrena con DP-SGD. Hiperparámetros rel
 
 - `privacy` — mecanismo `DPSGD` con ε/δ objetivo.
 - `num_modes` (3) — `ModeEncoder` Gaussian Mixture por columna numérica; `1` = z-score.
+- `numeric` (`"mode"`) — codificación de las numéricas: `"mode"` (modo-specific, mix de
+  Gauss) o `"uniform"` (rango percentil gaussianizado `Φ⁻¹(rank)` + cuantil empírico).
+  `"uniform"` maneja mucho mejor colas y es la opción recomendada cuando el marginal
+  importa; el inverso interpola entre cuantiles (no devuelve valores reales exactos).
+- `rectify_marginals` (`False`) — solo con `numeric="uniform"`: rectifica al muestrear los
+  marginales continuos al ECDF real (transformación monótona por columna, preserva la
+  cópula). Garantiza KS ≈ 1 para las numéricas; comparte el trade-off de cuantiles
+  empíricos en el marginal (utilidad vs. fuga per-columna) documentado en Limitaciones.
 - `condition_column` (`None`) — columna que condiciona la generación; `None` elige la más
   imbalanced (menor entropía) para que las clases minoritarias no colapsen.
 - `aux_lambda` (1.0) — peso de las pérdidas auxiliares (clasificador + consistencia de clase).
 - `generator_steps` (2) — pasos del generador por paso del discriminador (el presupuesto DP
   solo cuenta el discriminador).
+- `label_smoothing` (0.0) — suavizado de etiquetas del discriminador; útil para estabilizar.
+
+Resultados de la fase de endurecimiento (dataset tabular con correlaciones reales,
+1500 filas, `numeric="uniform"` + `rectify_marginals`): KS ≈ 1.0 en los tres numéricos
+para ε = 1/5/25 y `ml_utility` a la par de la cópula gaussiana de SDV (≈0.35). La cópula
+sigue ganando en correlaciones (corrMAE ≈0.02 vs ≈0.2–0.37): la estructura de dependencia
+es lo que menos aprende un DP-GAN MLP en datasets pequeños (ver Limitaciones).
 
 ## Métricas
 
@@ -164,6 +181,12 @@ Solo el discriminador ve datos reales y entrena con DP-SGD. Hiperparámetros rel
   formal con librerías dedicadas queda fuera de alcance.
 - Aunque `dp-gan` respeta el presupuesto, la utilidad real a ε bajo depende del dataset
   (ver el barrido `synthpriv sweep`).
+- La estructura de dependencia (correlaciones) es el punto débil del `dp-gan`: en datasets
+  pequeños aprendida parcialmente y con ruido; ahí las cópulas (SDV) son más precisas.
+- Con `numeric="uniform"` el marginal queda ligado a los cuantiles empíricos reales
+  (interpolados), lo que da utilidad fuerte pero comparte información per-columna; se
+  recomienda con `rectify_marginals=True` solo cuando la utilidad del marginal es prioritaria
+  frente a esa consideración.
 
 ## Nota de privacidad
 

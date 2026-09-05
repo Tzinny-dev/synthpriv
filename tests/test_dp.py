@@ -79,6 +79,49 @@ def test_mode_encoder_num_modes_one_is_zscore(real_data):
         assert np.allclose(X_one[mask, vals[col]], X_plain[mask, i])
 
 
+def test_uniform_encoder_roundtrip_and_tails(real_data):
+    """El inverso uniform tiene rango acotado por cola real (interpolado)."""
+    enc = ModeEncoder(num_modes=3, numeric="uniform").fit(real_data)
+    v = enc.transform(real_data)
+    assert v.shape == (len(real_data), enc.total_dims)
+    assert np.isfinite(v).all()
+    back = enc.inverse(v)
+    assert list(back.columns) == list(real_data.columns)
+    assert back.isna().sum().sum() == 0
+    for col in real_data.select_dtypes(include=[np.number]).columns:
+        if col in ("age", "score"):
+            assert back[col].min() >= real_data[col].min() - 1e-6
+            assert back[col].max() <= real_data[col].max() + 1e-6
+
+
+def test_uniform_rectify_matches_marginals(real_data):
+    """Rectificar marginales sobre numericas uniform deja cada marginal
+    exactamente uniforme: el inverso reproduce los cuantiles empiricos reales."""
+    from scipy import stats
+    enc = ModeEncoder(num_modes=3, numeric="uniform").fit(real_data)
+    X = np.random.default_rng(0).standard_normal((2000, enc.total_dims)).astype(np.float32)
+    out = enc.inverse(enc.rectify(X.copy()))
+    for col in real_data.select_dtypes(include=[np.number]).columns:
+        assert stats.ks_2samp(real_data[col], out[col]).pvalue > 0.99
+
+
+def test_uniform_rectify_preserves_rank_dependence(real_data):
+    """La rectificacion es monotona por columna: la correlacion de Spearman
+    muestral no cambia (la copula se conserva)."""
+    from scipy import stats
+    enc = ModeEncoder(num_modes=3, numeric="uniform").fit(real_data)
+    X0 = np.random.default_rng(1).multivariate_normal(
+        [0, 0], [[1, 0.6], [0.6, 1]], 500).astype(np.float32)
+    X = np.zeros((500, enc.total_dims), dtype=np.float32)
+    b = [b for b in enc.blocks if b["type"] == "num" and b.get("kind") == "uniform"]
+    X[:, 0:2] = X0
+    a, c = b[0], b[1]
+    rho_before = float(stats.spearmanr(X[:, a["val"]], X[:, c["val"]]).statistic)
+    Xr = enc.rectify(X.copy())
+    rho_after = float(stats.spearmanr(Xr[:, a["val"]], Xr[:, c["val"]]).statistic)
+    assert abs(rho_after - rho_before) < 1e-3
+
+
 @pytest.mark.slow
 def test_dpsgd_generator_fit_and_sample(real_data):
     """Entrenamiento DP con presupuesto holgado para que termine rapido."""

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from scipy.stats import norm
 from sklearn.mixture import GaussianMixture
 
 
@@ -93,10 +94,17 @@ class TabularEncoder:
 class ModeEncoder:
     """Encoder tabular de mejor utilidad, inspirado en CTGAN.
 
-    Numericas: normalizacion mode-specific. Cada valor se asigna al modo mas
-    probable de una Gaussian Mixture (por columna), se normaliza dentro del
-    modo y se codifica junto con un one-hot del modo. Captura distribuciones
-    multimodales que el z-score aplasta. ``num_modes=1`` degenera a z-score.
+    Numericas: dos modos de normalizacion.
+    - ``mode`` (mode-specific): cada valor se asigna al modo mas probable de una
+      Gaussian Mixture (por columna), se normaliza dentro del modo y se codifica
+      junto con un one-hot del modo. Captura distribuciones multimodales que el
+      z-score aplasta. ``num_modes=1`` degenera a z-score.
+    - ``uniform`` (empirico-CDF/rank gaussianizado): mapea cada valor a su rango
+      percentil y luego a un valor normal estandar via ``Phi^-1`` (gaussianizacion
+      por columna). El inverso aplica ``Phi`` y el cuantil empirico, con lo que el
+      marginal se reconstruye por construccion **si el generador emite valores
+      normales estandar** (marginal mas facil de aprender y sin saturacion de
+      ``tanh``).
 
     Categoricas: one-hot. Ademas, se elige la columna categorica mas
     imbalanced como ``condition_column_`` (menor entropia) para el
@@ -104,14 +112,19 @@ class ModeEncoder:
     ``condition_vectors``/``sample_conditions``.
 
     La salida usa ``blocks``: cada bloque numerico es
-    ``[valor normalizado, one-hot del modo]`` y cada categorico es su one-hot.
+    ``[valor normalizado (+ one-hot del modo en modo ``mode``)]`` y cada
+    categorico es su one-hot.
     """
 
     def __init__(self, num_modes: int = 5, clip_value: float = 3.0,
-                 condition_column: str | None = None):
+                 condition_column: str | None = None,
+                 numeric: str = "mode"):
         self.num_modes = max(1, int(num_modes))
         self.clip_value = float(clip_value)
         self.condition_column = condition_column
+        self.numeric = numeric
+        if numeric not in ("mode", "uniform"):
+            raise ValueError(f"numeric debe ser 'mode' o 'uniform', se recibio {numeric!r}")
         self.columns: list[str] = []
         self.num_columns: list[str] = []
         self.cat_columns: list[str] = []
@@ -132,6 +145,14 @@ class ModeEncoder:
         pos = 0
         for col in self.num_columns:
             v = data[col].astype(float).to_numpy()
+            if self.numeric == "uniform":
+                self.blocks.append({
+                    "type": "num", "col": col, "val": pos, "kind": "uniform",
+                    "min": float(np.min(v)), "max": float(np.max(v)),
+                    "values": np.sort(v), "n": len(v),
+                })
+                pos += 1
+                continue
             n_unique = len(np.unique(v))
             k = max(1, min(self.num_modes, n_unique))
             gmm = None
@@ -151,7 +172,7 @@ class ModeEncoder:
                 means = [float(m) for m in gmm.means_.ravel()]
                 stds = [float(s) for s in np.sqrt(gmm.covariances_.ravel())]
             self.blocks.append({
-                "type": "num", "col": col, "val": pos,
+                "type": "num", "col": col, "val": pos, "kind": "mode",
                 "modes": (pos + 1, pos + 1 + len(means)), "k": len(means),
                 "min": float(np.min(v)), "max": float(np.max(v)),
                 "means": means, "stds": stds, "gmm": gmm,
@@ -201,6 +222,12 @@ class ModeEncoder:
     # ------------------------------------------------------------------
     def _encode_numeric_block(self, b: dict, col: np.ndarray, out: np.ndarray) -> None:
         v = col
+        if b.get("kind") == "uniform":
+            left = np.searchsorted(b["values"], v, side="left")
+            right = np.searchsorted(b["values"], v, side="right")
+            rank = (left + right) / 2.0 / b["n"]  # promedio de empates en (0,1)
+            out[:, b["val"]] = np.clip(norm.ppf(rank), -self.clip_value, self.clip_value).astype(np.float32)
+            return
         if b["gmm"] is not None:
             mode = b["gmm"].predict(v.reshape(-1, 1))
         else:
@@ -228,6 +255,16 @@ class ModeEncoder:
         frame: dict[str, np.ndarray] = {}
         for b in self.blocks:
             if b["type"] == "num":
+                if b.get("kind") == "uniform":
+                    u = norm.cdf(X[:, b["val"]])
+                    f = np.clip(u * (b["n"] - 1), 0.0, b["n"] - 1)
+                    i = np.floor(f).astype(int)
+                    i = np.clip(i, 0, b["n"] - 2)
+                    t = (f - i)[:, None]
+                    lo = b["values"][i][:, None]
+                    hi = b["values"][i + 1][:, None]
+                    frame[b["col"]] = (lo * (1.0 - t) + hi * t).ravel()
+                    continue
                 mode = np.argmax(X[:, b["modes"][0]:b["modes"][1]], axis=1)
                 means = np.asarray(b["means"]); stds = np.asarray(b["stds"])
                 values = X[:, b["val"]] * stds[mode] + means[mode]
@@ -236,6 +273,29 @@ class ModeEncoder:
                 idx = np.argmax(X[:, b["start"]:b["end"]], axis=1)
                 frame[b["col"]] = np.asarray(b["categories"])[idx]
         return pd.DataFrame(frame, columns=self.columns)
+
+    def rectify(self, X: np.ndarray) -> np.ndarray:
+        """Rectifica los vecores numericos continuos a marginales uniformes.
+
+        Para cada bloque ``uniform`` sustituye el valor por su rango percentil
+        dentro de la propia muestra ``(rank-0.5)/n`` pasado por ``Phi^-1``.
+        Como es una transformacion monotona por columna, la copula muestral
+        (correlaciones de rango/estructura de dependencia) se conserva intacta
+        mientras que el marginal de cada columna queda exactamente uniforme: el
+        inverso devuelve entonces los cuantiles empiricos reales. Util para
+        corregir el sesgo marginal del generador sin tocar la estructura
+        conjunta aprendida. Aplica sobre numericas ``uniform``; el resto del
+        vector no se modifica.
+        """
+        X = np.asarray(X, dtype=np.float32)
+        for b in self.blocks:
+            if b["type"] != "num" or b.get("kind") != "uniform":
+                continue
+            v = X[:, b["val"]]
+            order = np.argsort(np.argsort(v))
+            ranks = np.clip((order + 0.5) / len(v), 1e-6, 1.0 - 1e-6)
+            X[:, b["val"]] = np.clip(norm.ppf(ranks), -self.clip_value, self.clip_value)
+        return X
 
     # ------------------------------------------------------------------
     def condition_vectors(self, data: pd.DataFrame) -> np.ndarray | None:

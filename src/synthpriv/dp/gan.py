@@ -78,9 +78,13 @@ class _Generator(nn.Module):
         outs = []
         for b in self.blocks:
             if b["type"] == "num":
+                if b.get("kind") == "uniform":
+                    outs.append(raw[:, b["val"]:b["val"] + 1])
+                    continue
                 val = torch.tanh(raw[:, b["val"]:b["val"] + 1]) * self.clip
+                outs.append(val)
                 start, end = b["modes"]
-                outs += [val, torch.softmax(raw[:, start:end], dim=1)]
+                outs.append(torch.softmax(raw[:, start:end], dim=1))
             else:
                 outs.append(torch.softmax(raw[:, b["start"]:b["end"]], dim=1))
         return torch.cat(outs, dim=1)
@@ -97,9 +101,13 @@ class _Generator(nn.Module):
         cond_logits = None
         for b in self.blocks:
             if b["type"] == "num":
+                if b.get("kind") == "uniform":
+                    outs.append(raw[:, b["val"]:b["val"] + 1])
+                    continue
                 val = torch.tanh(raw[:, b["val"]:b["val"] + 1]) * self.clip
+                outs.append(val)
                 start, end = b["modes"]
-                outs += [val, torch.softmax(raw[:, start:end], dim=1)]
+                outs.append(torch.softmax(raw[:, start:end], dim=1))
             else:
                 block = torch.softmax(raw[:, b["start"]:b["end"]], dim=1)
                 if getattr(self, "cond_block", None) is not None and b["col"] == self.cond_block["col"]:
@@ -195,6 +203,9 @@ class DPSGDGenerator(BaseSynthesizer):
         condition_column: str | None = None,
         aux_lambda: float = 1.0,
         generator_steps: int = 2,
+        numeric: str = "mode",
+        rectify_marginals: bool = False,
+        label_smoothing: float = 0.0,
         random_state: int = 0,
         **kwargs,
     ):
@@ -212,6 +223,9 @@ class DPSGDGenerator(BaseSynthesizer):
         self.condition_column = condition_column
         self.aux_lambda = aux_lambda
         self.generator_steps = max(1, int(generator_steps))
+        self.numeric = numeric
+        self.rectify_marginals = bool(rectify_marginals)
+        self.label_smoothing = float(label_smoothing)
         self._rng = np.random.default_rng(random_state)
         self._seed = int(random_state)
         torch.manual_seed(random_state)
@@ -220,7 +234,8 @@ class DPSGDGenerator(BaseSynthesizer):
         self._disc_steps_actual: int = 0
         self._generator: _Generator | None = None
         self._encoder = ModeEncoder(num_modes=num_modes, clip_value=clip_value,
-                                    condition_column=condition_column)
+                                    condition_column=condition_column,
+                                    numeric=self.numeric)
 
     # ------------------------------------------------------------------
     # entrenamiento DP
@@ -299,8 +314,9 @@ class DPSGDGenerator(BaseSynthesizer):
                 disc_opt.zero_grad()
                 crit_real, aux_real = disc(x_real)
                 crit_fake, aux_fake = disc(fake.detach())
-                loss_d = bce(crit_real, torch.ones_like(crit_real)) + \
-                    bce(crit_fake, torch.zeros_like(crit_fake))
+                ls = self.label_smoothing
+                loss_d = bce(crit_real, (1.0 - ls) * torch.ones_like(crit_real)) + \
+                    bce(crit_fake, ls * torch.ones_like(crit_fake))
                 if ce is not None:
                     loss_d = loss_d + self.aux_lambda * (ce(aux_real, cond_idx) + ce(aux_fake, cond_idx))
                 loss_d.backward()
@@ -363,6 +379,8 @@ class DPSGDGenerator(BaseSynthesizer):
         cond_t = torch.from_numpy(cond).to(DEVICE) if cond is not None else None
         with torch.no_grad():
             out = self._generator(z, cond_t).cpu().numpy()
+        if self.rectify_marginals and self._encoder is not None:
+            out = self._encoder.rectify(out)
         return self._encoder.inverse(out)
 
     # ------------------------------------------------------------------
@@ -390,6 +408,9 @@ class DPSGDGenerator(BaseSynthesizer):
             "condition_column": self.condition_column,
             "aux_lambda": self.aux_lambda,
             "generator_steps": self.generator_steps,
+            "numeric": self.numeric,
+            "rectify_marginals": self.rectify_marginals,
+            "label_smoothing": self.label_smoothing,
             "random_state": int(self._seed),
         }
 
