@@ -1,6 +1,8 @@
 # synthpriv
 
-Generación de datos sintéticos preservando privacidad. Construido sobre
+Síntesis de **datos tabulares** preservando **privacidad diferencial**: generadores
+(`dp-gan` con DP-SGD, `dp-copula` con DP pura), ECDF de marginales DP, benchmark y
+sweep de presupuesto, y un informe HTML de privacidad/utilidad. Construido sobre
 [SDV](https://docs.sdv.dev/), [SDMetrics](https://docs.sdv.dev/sdmetrics) y
 [Opacus](https://opacus.ai) para privacidad diferencial (DP-SGD) con accountant RDP.
 

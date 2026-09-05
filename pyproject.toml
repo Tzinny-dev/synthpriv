@@ -5,10 +5,34 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "synthpriv"
 version = "0.1.0"
-description = "Generacion de datos sinteticos preservando privacidad"
-requires-python = ">=3.10"
+description = "Sintesis de datos tabulares preservando privacidad diferencial"
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "Carlos", email = "921charly@gmail.com" },
+]
+keywords = [
+    "synthetic-data",
+    "differential-privacy",
+    "dp-sgd",
+    "gan",
+    "copula",
+    "tabular",
+    "sdv",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "numpy>=1.24",
     "pandas>=2.0",
@@ -23,7 +47,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+dev = ["pytest>=7.0", "pytest-cov>=4.0", "build>=1.0", "twine>=5.0"]
+
+[project.urls]
+Homepage = "https://github.com/Tzinny-dev/synthpriv"
+Repository = "https://github.com/Tzinny-dev/synthpriv"
+Issues = "https://github.com/Tzinny-dev/synthpriv/issues"
 
 [project.scripts]
 synthpriv = "synthpriv.cli:cli"
