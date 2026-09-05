@@ -163,14 +163,21 @@ def sweep(data, epsilons, delta, epochs, rows, output):
 @click.option("--baselines", "-b", "baselines", default="gaussian-copula", show_default=True,
               help="Generadores SDV sin DP separados por comas; usa 'all' para todos.")
 @click.option("--epochs", default=100, type=int, show_default=True, help="Epochs del dp-gan.")
+@click.option("--numeric", default="mode", type=click.Choice(["mode", "uniform"]), show_default=True,
+              help="Codificacion numerica del dp-gan: 'mode' (GMM) o 'uniform' (gaussianizada).")
+@click.option("--rectify-marginals", "rectify_marginals", is_flag=True,
+              help="Rectificar marginales al muestrear (requiere --numeric uniform).")
 @click.option("--baseline-epochs", default=0, type=int, show_default=True,
               help="Epochs de los baselines SDV (0 = el default de cada generador).")
 @click.option("--rows", "-n", "rows", default=None, type=int,
               help="Filas sinteticas por punto (default: mismas que reales).")
 @click.option("--output", "-o", "output", default="benchmark_report.html", type=click.Path(dir_okay=False),
               help="Informe HTML de salida.")
-def benchmark(data, epsilons, delta, baselines, epochs, baseline_epochs, rows, output):
+def benchmark(data, epsilons, delta, baselines, epochs, numeric, rectify_marginals,
+              baseline_epochs, rows, output):
     """Compara dp-gan (varios epsilon) frente a generadores SDV sin DP."""
+    if rectify_marginals and numeric != "uniform":
+        raise click.ClickException("--rectify-marginals requiere --numeric uniform")
     df = pd.read_csv(data)
     eps = tuple(float(e.strip()) for e in epsilons.split(",") if e.strip())
     bl = ["gaussian-copula", "ctgan", "tvae", "copula-gan"] if baselines.strip() == "all" \
@@ -182,7 +189,8 @@ def benchmark(data, epsilons, delta, baselines, epochs, baseline_epochs, rows, o
         epsilons=eps,
         delta=delta,
         baselines=bl,
-        generator_kwargs={"epochs": epochs, "batch_size": 128},
+        generator_kwargs={"epochs": epochs, "batch_size": 128,
+                          "numeric": numeric, "rectify_marginals": rectify_marginals},
         baseline_kwargs=baseline_kwargs,
         num_rows=rows,
     )

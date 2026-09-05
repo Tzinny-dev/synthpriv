@@ -97,7 +97,8 @@ def test_run_benchmark_con_copula(real_data):
         real_data,
         epsilons=(1.0, 50.0),
         baselines=(_BASELINE,),
-        generator_kwargs={"epochs": 3, "batch_size": 64, "latent_dim": 16, "hidden_dim": 32},
+        generator_kwargs={"epochs": 3, "batch_size": 64, "latent_dim": 16, "hidden_dim": 32,
+                          "numeric": "uniform", "rectify_marginals": True},
         num_rows=200,
     )
     models = [r["model"] for r in result.rows]

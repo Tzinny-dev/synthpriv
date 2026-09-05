@@ -19,7 +19,7 @@ El proyecto se desarrolla por fases acumulativas, cada una con su batería de te
 | 6 | `603445f` | `assert_dp`: validación de integridad de pasos DP y presupuesto ε |
 | 7 | `90b485f` | Docs + demo reproducible end-to-end (README, `examples/demo.py`) |
 | 8 | `e979fb7` | Benchmark `dp-gan` vs baselines SDV sin DP (curvas de utilidad + gap) |
-| 9 | *(esta fase)* | Endurecimiento de utilidad del `dp-gan`: `numeric="uniform"` (gaussianización + cuantil interpolado), `rectify_marginals` (KS garantizado), `label_smoothing`; diagnóstico y límites documentados |
+| 9 | `6001540` | Endurecimiento de utilidad del `dp-gan`: `numeric="uniform"` (gaussianización + cuantil interpolado), `rectify_marginals` (KS garantizado), `label_smoothing`; diagnóstico y límites documentados |
 
 ## Instalación
 

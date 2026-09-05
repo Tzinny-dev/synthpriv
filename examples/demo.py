@@ -63,6 +63,8 @@ def main() -> int:
             "batch_size": 128,
             "latent_dim": 32,
             "hidden_dim": 128,
+            "numeric": "uniform",
+            "rectify_marginals": True,
             "privacy": privacy,
         },
         privacy_mechanism=privacy,
@@ -72,6 +74,8 @@ def main() -> int:
     )
 
     print(f"\n=== Entrenando dp-gan con epsilon objetivo {epsilon}, {epochs} epochs ===")
+    print("    codificacion numerica 'uniform' + rectificacion de marginales"
+          " (KS garantizado; copula preservada)")
     synthetic = synth.generate(real, num_rows=len(real))
     synthetic.to_csv(OUT / "synthetic.csv", index=False)
 
