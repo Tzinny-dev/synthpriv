@@ -19,6 +19,7 @@ from synthpriv.pipeline import PrivacyPreservingSynthesizer
 from synthpriv.privacy.assurance import DpAssurance, assert_dp
 from synthpriv.privacy.mechanisms import DPSGD, NoPrivacy, PrivacyMechanism
 from synthpriv.privacy.dpecdf import DPEcdf
+from synthpriv.privacy.budget import BudgetSplit, split_budget
 from synthpriv.sweep import SweepResult, run_epsilon_sweep
 from synthpriv.benchmark import BenchmarkResult, run_benchmark
 
@@ -43,6 +44,8 @@ __all__ = [
     "NoPrivacy",
     "DPSGD",
     "DPEcdf",
+    "BudgetSplit",
+    "split_budget",
     "register_generator",
     "get_generator",
     "build_generator",

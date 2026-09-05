@@ -172,6 +172,10 @@ Solo el discriminador ve datos reales y entrena con DP-SGD. Hiperparámetros rel
   `bounds` la garantía es DP pura estricta (cuadrícula fija, sin rango derivado de datos);
   sin él el soporte se deriva de los cuantiles 0.001/0.999 (con margen) y se emite un
   warning documentando ese matiz.
+- Reparto de presupuesto — `from synthpriv import split_budget; b = split_budget(total=10.0,
+  margins_fraction=0.3)` devuelve `b.train` (para `epsilon`) y `b.margins` (para
+  `ecdf_epsilon`), con `b.total = train + margins`. El total con `dp-gan` es exactamente
+  aditivo.
 
 Resultados de la fase de endurecimiento (dataset tabular con correlaciones reales,
 1500 filas, `numeric="uniform"` + `rectify_marginals`): KS ≈ 1.0 en los tres numéricos

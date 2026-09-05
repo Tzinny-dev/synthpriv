@@ -243,7 +243,24 @@ def test_dp_copula_requires_dp_mechanism():
         DPCopulaGenerator(privacy=NoPrivacy())
 
 
+def test_split_budget_helper():
+    from synthpriv import BudgetSplit, split_budget
+    b = split_budget(10.0, margins_fraction=0.3)
+    assert isinstance(b, BudgetSplit)
+    assert b.train == pytest.approx(7.0) and b.margins == pytest.approx(3.0)
+    assert b.total == pytest.approx(b.train + b.margins)
+    assert "10.000 -> entrenamiento (DP-SGD) 7.000" in b.describe()
+    with pytest.raises(ValueError):
+        split_budget(0.0)
+    with pytest.raises(ValueError):
+        split_budget(1.0, margins_fraction=1.0)
+
+
 def test_dp_copula_save_load_roundtrip(tmp_path):
+    from synthpriv import DPCopulaGenerator, DPSGD
+    rng = np.random.default_rng(0)
+    a = rng.normal(size=200)
+    b = rng.normal(size=200) + 0.5 * a
     from synthpriv import DPCopulaGenerator, DPSGD
     rng = np.random.default_rng(0)
     a = rng.normal(size=200)
