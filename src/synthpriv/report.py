@@ -73,6 +73,10 @@ _TEMPLATE = """<!DOCTYPE html>
     {% if mech.dp %}
       {% if acc.effective_epsilon is not none %}
         <p><span class="pill passed">DP activo</span> Epsilon acumulado real: <strong>{{ acc.effective_epsilon }}</strong> (presupuesto {{ mech.epsilon }}; ruido = {{ acc.noise_multiplier }})</p>
+        {% if acc.ecdf_epsilon is not none %}
+          <p><span class="pill passed">DP-ECDF activo</span> Epsilon total (entrenamiento + marginales): <strong>{{ "%.4f"|format(acc.total_epsilon) }}</strong>
+          = {{ "%.4f"|format(acc.effective_epsilon) }} (DP-SGD) + {{ acc.ecdf_epsilon }} (DP-ECDF)</p>
+        {% endif %}
       {% else %}
         <p><span class="pill reported">DP declarado, no medido</span> Presupuesto epsilon: {{ mech.epsilon }} (delta {{ mech.delta }}). El epsilon acumulado real solo se obtiene entrenando con synthpriv.</p>
       {% endif %}
