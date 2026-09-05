@@ -215,6 +215,7 @@ class DPSGDGenerator(BaseSynthesizer):
         rectify_marginals: bool = False,
         ecdf_epsilon: float | None = None,
         ecdf_bins: int = 200,
+        ecdf_bounds: tuple[float, float] | None = None,
         label_smoothing: float = 0.0,
         random_state: int = 0,
         **kwargs,
@@ -247,7 +248,8 @@ class DPSGDGenerator(BaseSynthesizer):
                                     condition_column=condition_column,
                                     numeric=self.numeric,
                                     dp_ecdf_epsilon=ecdf_epsilon,
-                                    ecdf_bins=ecdf_bins)
+                                    ecdf_bins=ecdf_bins,
+                                    ecdf_bounds=ecdf_bounds)
         self.ecdf_epsilon = self._encoder.dp_ecdf_epsilon
 
     # ------------------------------------------------------------------
@@ -425,6 +427,7 @@ class DPSGDGenerator(BaseSynthesizer):
             "rectify_marginals": self.rectify_marginals,
             "ecdf_epsilon": self.ecdf_epsilon,
             "ecdf_bins": self._encoder.ecdf_bins,
+            "ecdf_bounds": self._encoder.ecdf_bounds,
             "label_smoothing": self.label_smoothing,
             "random_state": int(self._seed),
         }

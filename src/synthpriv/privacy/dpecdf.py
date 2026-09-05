@@ -21,6 +21,8 @@ Mecanismo: histograma con recuentos ruidosos Laplace para cada columna numerica.
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 
 from synthpriv.utils import get_logger
@@ -40,18 +42,31 @@ class DPEcdf:
     bins:
         Numero de intervalos de igual anchura sobre el soporte recortado.
     q_low/q_high:
-        Cuantiles (0..1) que definen el soporte de la cuadricula; los valores
-        fuera se agrupan en los bordes via el recorte del rango.
+        Cuantiles (0..1) que definen el soporte de la cuadricula cuando no se
+        dan ``bounds``; los valores fuera se agrupan en los bordes via el recorte
+        del rango.
+    bounds:
+        Soporte **publico** ``(min, max)`` de la columna. Si se provee, la
+        cuadricula es fija y el mecanismo es DP pura estricta (la garantia no
+        depende de ningun dato previo). Si es ``None``, el soporte se deriva de
+        los cuantiles empiricos 0.001/0.999 de los datos (con margen): util en la
+        practica, pero el rango en si revela informacion de la muestra — se emite
+        un warning y se recomienda pasar ``bounds`` publicos cuando existan.
     """
 
     def __init__(self, epsilon: float = 1.0, bins: int = 200,
-                 q_low: float = 0.001, q_high: float = 0.999):
+                 q_low: float = 0.001, q_high: float = 0.999,
+                 bounds: tuple[float, float] | None = None):
         if epsilon <= 0:
             raise ValueError(f"epsilon del DP-ECDF debe ser > 0, se recibio {epsilon!r}")
         self.epsilon = float(epsilon)
         self.bins = max(2, int(bins))
         self.q_low = float(q_low)
         self.q_high = float(q_high)
+        if bounds is not None and not (
+                bounds[0] < bounds[1] and np.isfinite(bounds[0]) and np.isfinite(bounds[1])):
+            raise ValueError(f"bounds invalidos: {bounds!r} (requiere min < max finitos)")
+        self.bounds = tuple(map(float, bounds)) if bounds is not None else None
         self.n = 0
         self._edges: np.ndarray | None = None
         self._cdf: np.ndarray | None = None  # len(bins)+1, monotono, termina en 1
@@ -66,12 +81,22 @@ class DPEcdf:
         self.n = int(v.size)
         rng = rng or np.random.default_rng(0)
 
-        lo = float(np.quantile(v, min(self.q_low, self.q_high)))
-        hi = float(np.quantile(v, max(self.q_low, self.q_high)))
-        pad = 1e-6 + 0.05 * (hi - lo)  # redondea soporte, no publica los extremos
-        lo, hi = lo - pad, hi + pad
-        if hi <= lo:
-            hi = lo + 1.0
+        if self.bounds is not None:
+            lo, hi = self.bounds
+        else:
+            lo = float(np.quantile(v, min(self.q_low, self.q_high)))
+            hi = float(np.quantile(v, max(self.q_low, self.q_high)))
+            pad = 1e-6 + 0.05 * (hi - lo)  # redondea soporte, no publica los extremos
+            lo, hi = lo - pad, hi + pad
+            if hi <= lo:
+                hi = lo + 1.0
+            warnings.warn(
+                "DPEcdf usa un soporte derivado de los datos (cuantiles 0.001/0.999 "
+                "+ margen). La garantia DP del histograma es estricta dado ese soporte, "
+                "pero el rango en si revela informacion muestral; pasa 'bounds=(min,max)' "
+                "publicos cuando existan para una garantia formal completa.",
+                stacklevel=2,
+            )
 
         counts = np.histogram(v, bins=self.bins, range=(lo, hi))[0].astype(np.float64)
         scale = 1.0 / self.epsilon
@@ -118,6 +143,8 @@ class DPEcdf:
             "dp": True,
             "epsilon": self.epsilon,
             "bins": self.bins,
+            "bounds_public": self.bounds is not None,
+            "bounds": self.bounds,
             "range": None if self._edges is None
                 else (float(self._edges[0]), float(self._edges[-1])),
             "n": self.n,

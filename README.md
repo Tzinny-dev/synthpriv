@@ -150,10 +150,14 @@ Solo el discriminador ve datos reales y entrena con DP-SGD. Hiperparámetros rel
 - `ecdf_epsilon` (`None`) — presupuesto DP de los **marginales** (solo con `numeric="uniform"`):
   construye una ECDF privada por columna (histograma Laplace, ε por columna = `ecdf_epsilon /
   nº numéricas`, composición paralela por bins). La garantía **total** del sintetizador es la
-  composición secuencial `epsilon(acumulado) + ecdf_epsilon`, que el informe expone en
-  `accountant.ecdf_epsilon` / `accountant.total_epsilon`. Con `None` la ECDF es la empírica
-  cruda (sin garantía formal en el marginal). En CLI: `synthpriv generate --epsilon E
-  --ecdf-epsilon EE`.
+  composición secuencial `epsilon(acumulado) + ecdf_epsilon` (aditiva y exacta: la ECDF es DP
+  pura, δ=0), que el informe expone en `accountant.ecdf_epsilon` / `accountant.total_epsilon`.
+  Con `None` la ECDF es la empírica cruda (sin garantía formal en el marginal). En CLI:
+  `synthpriv generate --epsilon E --ecdf-epsilon EE`.
+- `ecdf_bounds` (`None`) — soporte **público** `(min, max)` de las ECDF privadas. Con
+  `bounds` la garantía es DP pura estricta (cuadrícula fija, sin rango derivado de datos);
+  sin él el soporte se deriva de los cuantiles 0.001/0.999 (con margen) y se emite un
+  warning documentando ese matiz.
 
 Resultados de la fase de endurecimiento (dataset tabular con correlaciones reales,
 1500 filas, `numeric="uniform"` + `rectify_marginals`): KS ≈ 1.0 en los tres numéricos

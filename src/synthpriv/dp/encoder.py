@@ -122,7 +122,8 @@ class ModeEncoder:
                  condition_column: str | None = None,
                  numeric: str = "mode",
                  dp_ecdf_epsilon: float | None = None,
-                 ecdf_bins: int = 200):
+                 ecdf_bins: int = 200,
+                 ecdf_bounds: tuple[float, float] | None = None):
         self.num_modes = max(1, int(num_modes))
         self.clip_value = float(clip_value)
         self.condition_column = condition_column
@@ -133,6 +134,7 @@ class ModeEncoder:
             raise ValueError("dp_ecdf_epsilon solo se aplica con numeric='uniform'")
         self.dp_ecdf_epsilon = float(dp_ecdf_epsilon) if dp_ecdf_epsilon is not None else None
         self.ecdf_bins = max(2, int(ecdf_bins))
+        self.ecdf_bounds = tuple(map(float, ecdf_bounds)) if ecdf_bounds is not None else None
         self.ecdf_epsilon = None  # presupuesto total consumido por marginales DP (tras fit)
         self.columns: list[str] = []
         self.num_columns: list[str] = []
@@ -163,7 +165,8 @@ class ModeEncoder:
                     "values": np.sort(v), "n": len(v),
                 }
                 if col_eps is not None:
-                    block["ecdf"] = DPEcdf(epsilon=col_eps, bins=self.ecdf_bins).fit(v)
+                    block["ecdf"] = DPEcdf(epsilon=col_eps, bins=self.ecdf_bins,
+                                           bounds=self.ecdf_bounds).fit(v)
                 self.blocks.append(block)
                 pos += 1
                 continue

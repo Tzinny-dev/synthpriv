@@ -162,6 +162,39 @@ def test_encoder_dpecdf_requires_uniform():
         ModeEncoder(num_modes=3, numeric="mode", dp_ecdf_epsilon=1.0)
 
 
+def test_dpecdf_public_bounds_no_warning():
+    """Con bounds publicos el mecanismo es DP pura estricta (sin warning)."""
+    import warnings as _warn
+    from synthpriv import DPEcdf
+    rng = np.random.default_rng(0)
+    v = rng.normal(0, 1, 500)
+    with _warn.catch_warnings(record=True) as rec:
+        _warn.simplefilter("always")
+        ecdf = DPEcdf(epsilon=1.0, bins=50, bounds=(0.0, 1.0)).fit(v, rng=rng)
+    assert not any("soporte derivado" in str(w.message) for w in rec)
+    assert ecdf.bounds == (0.0, 1.0)
+    q = ecdf.quantile(np.array([0.0, 1.0]))
+    assert q[0] >= 0.0 and q[1] <= 1.0
+    assert ecdf.report()["bounds_public"] is True
+
+
+def test_dpecdf_data_derived_range_warns():
+    """Sin bounds el soporte viene de los datos: se avisa explicitamente."""
+    from synthpriv import DPEcdf
+    with pytest.warns(UserWarning, match="soporte derivado"):
+        DPEcdf(epsilon=1.0, bins=50).fit(np.linspace(0, 10, 100))
+
+
+def test_encoder_uniform_with_dpecdf_public_bounds(real_data):
+    from synthpriv import DPEcdf
+    enc = ModeEncoder(num_modes=3, numeric="uniform",
+                      dp_ecdf_epsilon=6.0, ecdf_bins=120,
+                      ecdf_bounds=(0.0, 100.0)).fit(real_data)
+    for b in (b for b in enc.blocks if b.get("kind") == "uniform"):
+        assert b["ecdf"].bounds == (0.0, 100.0)
+        assert b["ecdf"].report()["bounds_public"] is True
+
+
 @pytest.mark.slow
 def test_dpsgd_generator_fit_and_sample(real_data):
     """Entrenamiento DP con presupuesto holgado para que termine rapido."""
