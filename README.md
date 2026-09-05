@@ -187,6 +187,10 @@ es lo que menos aprende un DP-GAN MLP en datasets pequeños (ver Limitaciones).
   imágenes ni secuencias.
 - La garantía DP depende del accountant RDP de Opacus y del muestreo de Poisson; auditoría
   formal con librerías dedicadas queda fuera de alcance.
+- `assert_dp` valida la integridad del **DP-SGD del entrenamiento** (pasos + presupuesto). Si
+  además usas `ecdf_epsilon`, la garantía **total** del sintetizador es la composición
+  `epsilon(acumulado) + ecdf_epsilon` (aditiva y exacta: la ECDF es DP pura, δ=0); el
+  informe y el mensaje de `assert_dp` la muestran.
 - Con `ecdf_epsilon`, el presupuesto de marginales se reparte **equitativamente entre
   columnas** y el soporte de cada ECDF se recorta a los cuantiles empíricos 0.001/0.999
   (+margen): los extremos exactos no se emiten ni se publican, a cambio de un ligero recorte

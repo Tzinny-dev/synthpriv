@@ -176,10 +176,16 @@ def assert_dp(
     if assurance.steps_match and assurance.budget_respected:
         assurance.status = STATUS_OK
         _noise = assurance.noise_multiplier if assurance.noise_multiplier is not None else float("nan")
+        note = ""
+        ecdf = getattr(generator, "ecdf_epsilon", None)
+        if ecdf is not None:
+            note = (f" (valida el DP-SGD del entrenamiento; total del sintetizador = "
+                    f"{measured:.3f} + {ecdf} = {measured + float(ecdf):.3f} con DP-ECDF, "
+                    f"ver informe)")
         assurance.message = (
             f"Garantia DP validada: epsilon RDP {measured:.3f} "
             f"(ventana [{measured:.3f}, {declared}]), {accounted} pasos "
-            f"contabilizados y ejecutados, ruido {_noise:.3f}."
+            f"contabilizados y ejecutados, ruido {_noise:.3f}.{note}"
         )
     else:
         assurance.message = (
