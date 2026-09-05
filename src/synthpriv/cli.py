@@ -178,6 +178,9 @@ def sweep(data, epsilons, delta, epochs, rows, output):
               help="Codificacion numerica del dp-gan: 'mode' (GMM) o 'uniform' (gaussianizada).")
 @click.option("--rectify-marginals", "rectify_marginals", is_flag=True,
               help="Rectificar marginales al muestrear (requiere --numeric uniform).")
+@click.option("--ecdf-epsilon", default=None, type=float,
+              help="Presupuesto DP-ECDF de marginales (requiere --numeric uniform). "
+                   "El total informado por punto es entrenamiento + este valor.")
 @click.option("--baseline-epochs", default=0, type=int, show_default=True,
               help="Epochs de los baselines SDV (0 = el default de cada generador).")
 @click.option("--rows", "-n", "rows", default=None, type=int,
@@ -185,8 +188,10 @@ def sweep(data, epsilons, delta, epochs, rows, output):
 @click.option("--output", "-o", "output", default="benchmark_report.html", type=click.Path(dir_okay=False),
               help="Informe HTML de salida.")
 def benchmark(data, epsilons, delta, baselines, epochs, numeric, rectify_marginals,
-              baseline_epochs, rows, output):
+              ecdf_epsilon, baseline_epochs, rows, output):
     """Compara dp-gan (varios epsilon) frente a generadores SDV sin DP."""
+    if ecdf_epsilon is not None and numeric != "uniform":
+        raise click.ClickException("--ecdf-epsilon requiere --numeric uniform")
     if rectify_marginals and numeric != "uniform":
         raise click.ClickException("--rectify-marginals requiere --numeric uniform")
     df = pd.read_csv(data)
@@ -201,7 +206,8 @@ def benchmark(data, epsilons, delta, baselines, epochs, numeric, rectify_margina
         delta=delta,
         baselines=bl,
         generator_kwargs={"epochs": epochs, "batch_size": 128,
-                          "numeric": numeric, "rectify_marginals": rectify_marginals},
+                          "numeric": numeric, "rectify_marginals": rectify_marginals,
+                          "ecdf_epsilon": ecdf_epsilon},
         baseline_kwargs=baseline_kwargs,
         num_rows=rows,
     )

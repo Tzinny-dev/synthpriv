@@ -9,7 +9,7 @@ Recorrido:
 5. Ejecuta ``assert_dp`` para validar que la garantia DP no se excede.
 
 Uso (desde la raiz del repo, con el entorno activo):
-    .venv/bin/python examples/demo.py [epsilon] [epochs]
+    .venv/bin/python examples/demo.py [epsilon] [epochs] [ecdf_epsilon]
 
 Salida: /tmp/synthpriv_demo/ con
     - synthetic.csv          (filas generadas)
@@ -49,6 +49,7 @@ def make_real_data(n: int = 2000, seed: int = 7) -> pd.DataFrame:
 def main() -> int:
     epsilon = float(sys.argv[1]) if len(sys.argv) > 1 else 8.0
     epochs = int(sys.argv[2]) if len(sys.argv) > 2 else 100
+    ecdf_eps = float(sys.argv[3]) if len(sys.argv) > 3 else 2.0
     OUT.mkdir(parents=True, exist_ok=True)
 
     real = make_real_data()
@@ -65,6 +66,7 @@ def main() -> int:
             "hidden_dim": 128,
             "numeric": "uniform",
             "rectify_marginals": True,
+            "ecdf_epsilon": ecdf_eps,
             "privacy": privacy,
         },
         privacy_mechanism=privacy,
@@ -73,14 +75,16 @@ def main() -> int:
         random_state=0,
     )
 
-    print(f"\n=== Entrenando dp-gan con epsilon objetivo {epsilon}, {epochs} epochs ===")
-    print("    codificacion numerica 'uniform' + rectificacion de marginales"
-          " (KS garantizado; copula preservada)")
+    print(f"\n=== Entrenando dp-gan: epsilon objetivo {epsilon} (DP-SGD) + "
+          f"{ecdf_eps} (DP-ECDF) ===")
+    print("    codificacion numerica 'uniform' + DP-ECDF de marginales con"
+          " composicion secuencial")
     synthetic = synth.generate(real, num_rows=len(real))
     synthetic.to_csv(OUT / "synthetic.csv", index=False)
 
     eps_measured = synth.accountant.get_epsilon()
     print(f"epsilon acumulado real (RDP): {eps_measured:.4f}")
+    print(f"epsilon TOTAL (DP-SGD + DP-ECDF): {eps_measured + ecdf_eps:.4f}")
 
     print("\n=== Evaluando utilidad y privacidad ===")
     report = synth.evaluate(real, synthetic)
