@@ -18,7 +18,7 @@ def test_sweep_result_dataframe_and_csv(tmp_path):
         utility_metrics=["ks_test", "correlation_mae"],
     )
     df = result.dataframe()
-    assert list(df["measured_epsilon"]) == [0.9, 45.0]  # orden ascendente
+    assert list(df["measured_epsilon"]) == [0.9, 45.0]  # ascending order
     result.to_csv(tmp_path / "sweep.csv")
     assert (tmp_path / "sweep.csv").exists()
 
@@ -30,7 +30,7 @@ def test_best_tradeoff():
         {"target_epsilon": 50.0, "measured_epsilon": 46.0, "util_correlation_mae": 0.02},
     ])
     best = result.best_tradeoff("util_correlation_mae", threshold=0.05)
-    assert best["measured_epsilon"] == 1.9  # el mas privado que cumple MAE <= 0.05
+    assert best["measured_epsilon"] == 1.9  # the most private that meets MAE <= 0.05
     assert result.best_tradeoff("util_correlation_mae", threshold=0.001) is None
 
 
@@ -48,7 +48,7 @@ def test_sweep_report_render_with_svg(tmp_path):
 
 @pytest.mark.slow
 def test_run_epsilon_sweep_smoke(real_data, tmp_path):
-    """Barrido corto con presupuestos holgados para terminar rapido."""
+    """Short sweep with loose budgets to finish quickly."""
     result = run_epsilon_sweep(
         real_data,
         epsilons=(5.0, 50.0),
@@ -61,7 +61,7 @@ def test_run_epsilon_sweep_smoke(real_data, tmp_path):
     assert len(result.rows) == 2
     measured = [r["measured_epsilon"] for r in result.rows]
     assert all(m is not None for m in measured)
-    assert measured[0] <= 5.0 * 1.5  # cerca del presupuesto del primer punto
-    assert measured[1] > measured[0]  # mayor presupuesto -> mayor epsilon medido
+    assert measured[0] <= 5.0 * 1.5  # close to the first point budget
+    assert measured[1] > measured[0]  # higher budget -> higher measured epsilon
     assert all("util_correlation_mae" in r for r in result.rows)
     assert result.save_report(tmp_path / "sweep.html").exists()

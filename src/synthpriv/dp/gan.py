@@ -1,19 +1,19 @@
-"""GAN tabular entrenado con DP-SGD (Opacus), condicionado por clase.
+"""Tabular GAN trained with DP-SGD (Opacus), class-conditioned.
 
-Construccion clasica de DP-GAN: solo el discriminador ve los datos y se entrena
-con DP-SGD (recorte + ruido en los gradientes). El generador es post-proceso
-del discriminador, asi que el resultado es DP con el epsilon contabilizado.
+Classic DP-GAN construction: only the discriminator sees the data and trains
+with DP-SGD (gradient clipping + noise). The generator is post-processing of
+the discriminator, so the result is DP with the accounted epsilon.
 
-Para utilidad se usa el esquema AC-GAN: el generador recibe un vector de
-condicion (clase de la columna mas imbalanced) y el discriminador tiene una
-cabeza auxiliar que debe predecirla. La condicion se muestrea balanceada en el
-paso del generador (estilo CTGAN) para que las clases minoritarias no queden
-colapsadas a la mayoritaria; al muestrear se usa la frecuencia empirica para
-respetar el marginal. Las numericas usan normalizacion mode-specific
-(``ModeEncoder``) para no aplastar modos.
+For utility the AC-GAN scheme is used: the generator receives a condition
+vector (class of the most imbalanced column) and the discriminator has an
+auxiliary head that must predict it. The condition is sampled balanced in the
+generator step (CTGAN-style) so minority classes do not collapse to the
+majority one; when sampling, the empirical frequency is used to respect the
+marginal. Numerics use mode-specific normalization (``ModeEncoder``) to avoid
+flattening modes.
 
-El accountant (RDP) traduce ruido, epochs y tamano de muestra al epsilon
-acumulado real, que se expone en ``accounted_epsilon`` tras ``fit``.
+The RDP accountant translates noise, epochs and sample size into the real
+accumulated epsilon, exposed in ``accounted_epsilon`` after ``fit``.
 """
 
 from __future__ import annotations
@@ -36,9 +36,9 @@ from synthpriv.privacy.assurance import DpAssurance, assert_dp
 from synthpriv.privacy.mechanisms import DPSGD
 from synthpriv.utils import get_logger
 
-# Avisos benignos y abundantes de Opacus/Torch durante el entrenamiento DP.
-_BN_ALERTAS = ("Full backward hook", "Secure RNG turned off", "Optimal order is the largest alpha")
-for _m in _BN_ALERTAS:
+# Benign and abundant Opacus/Torch warnings during DP training.
+_BN_WARNINGS = ("Full backward hook", "Secure RNG turned off", "Optimal order is the largest alpha")
+for _m in _BN_WARNINGS:
     warnings.filterwarnings("ignore", message=f"{_m}.*")
 
 logger = get_logger("dp")
@@ -47,10 +47,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class _Generator(nn.Module):
-    """MLP condicional: ``(z, cond)`` -> vector en el espacio del ``ModeEncoder``.
+    """Conditional MLP: ``(z, cond)`` -> vector in the ``ModeEncoder`` space.
 
-    La salida se monta por bloques: cada numerica aporta ``tanh(valor)`` + softmax
-    sobre sus modos, y cada categorica su softmax. Resultado isomorfo al codificado.
+    The output is assembled in blocks: each numeric contributes ``tanh(value)`` +
+    a softmax over its modes, and each categorical its softmax. The result is
+    isomorphic to the encoding.
     """
 
     def __init__(self, latent, hidden, encoder: ModeEncoder, n_layers=2):
@@ -90,8 +91,8 @@ class _Generator(nn.Module):
         return torch.cat(outs, dim=1)
 
     def forward_with_logits(self, z, cond=None):
-        """Igual que ``forward`` pero devolviendo ademas los logits del bloque
-        de condicion, para el termino de consistencia directa del generador."""
+        """Same as ``forward`` but also returning the condition-block logits,
+        for the generator's direct consistency term."""
         if cond is not None:
             inp = torch.cat([z, cond], dim=1)
         else:
@@ -117,7 +118,7 @@ class _Generator(nn.Module):
 
 
 class _Discriminator(nn.Module):
-    """Discriminador con critica y cabeza auxiliar de condicion (AC-GAN)."""
+    """Discriminator with a critic and an auxiliary condition head (AC-GAN)."""
 
     def __init__(self, input_dim, hidden, n_layers=2, dropout=0.0, n_cond=0):
         super().__init__()
@@ -139,12 +140,12 @@ class _Discriminator(nn.Module):
 
 def _clone_discriminator(src: nn.Module, hidden: int, n_layers: int, dropout: float,
                          input_dim: int, n_cond: int) -> _Discriminator:
-    """Copia SIN hooks de Opacus para que el paso del generador no toque la contabilidad DP.
+    """Clone WITHOUT Opacus hooks so the generator step does not touch the DP accounting.
 
-    ``src`` es el GradSampleModule/SampleModule devuelto por Opacus, que puede
-    estar anidado; se desenvuelve hasta el ``_Discriminator`` con los mismos
-    tensores de pesos. Los gradientes del generador fluyen por el clon (misma
-    funcion), y el discriminador DP nunca acumula gradientes fuera de su paso.
+    ``src`` is the GradSampleModule/SampleModule returned by Opacus, which can be
+    nested; it is unwrapped down to the ``_Discriminator`` with the same weight
+    tensors. The generator gradients flow through the clone (same function), and
+    the DP discriminator never accumulates gradients outside its own step.
     """
     inner = src
     while hasattr(inner, "_module") or hasattr(inner, "module"):
@@ -157,40 +158,41 @@ def _clone_discriminator(src: nn.Module, hidden: int, n_layers: int, dropout: fl
 
 
 @register_generator("dp-gan",
-                    description="GAN condicional tabular con DP-SGD (Opacus) y epsilon contabilizado",
+                    description="Conditional tabular GAN with DP-SGD (Opacus) and accounted epsilon",
                     supports=("tabular",))
 class DPSGDGenerator(BaseSynthesizer):
-    """Generador tabular con garantia formal de privacidad diferencial.
+    """Tabular generator with a formal differential privacy guarantee.
 
     Parameters
     ----------
     privacy:
-        Mecanismo ``DPSGD`` con ``epsilon``/``delta`` objetivo. Si se fija
-        ``noise_multiplier`` se usa ese ruido; si no, Opacus lo calcula para
-        alcanzar el presupuesto a partir de epochs/batch_size/n_muestras.
+        ``DPSGD`` mechanism with target ``epsilon``/``delta``. If
+        ``noise_multiplier`` is set, that noise is used; otherwise Opacus computes
+        it to reach the budget from epochs/batch_size/n_samples.
     num_modes:
-        Modos Gaussian Mixture por columna numerica. ``1`` = z-score simple.
-        Un valor bajo (3-5) captura multimodalidad; subirlo mucho lastra al
-        generador con dimensiones extra.
+        Gaussian Mixture modes per numeric column. ``1`` = plain z-score.
+        A low value (3-5) captures multimodality; raising it too much burdens the
+        generator with extra dimensions.
     condition_column:
-        Columna categorica que condiciona la generacion. ``None`` elige la mas
-        imbalanced (menor entropia). El paso del generador muestrea la condicion
-        de forma balanceada (estilo CTGAN) para que las clases minoritarias se
-        aprendan, y al generar se muestrea con la frecuencia empirica real.
+        Categorical column conditioning generation. ``None`` picks the most
+        imbalanced one (lowest entropy). The generator step samples the condition
+        balanced (CTGAN-style) so minority classes are learned, and generation
+        samples with the real empirical frequency.
     aux_lambda:
-        Peso de las perdidas auxiliares (clasificador del discriminador y
-        consistencia directa entre la clase generada y su condicion).
+        Weight of the auxiliary losses (discriminator classifier and direct
+        consistency between the generated class and its condition).
     generator_steps:
-        Pasos del generador por paso del discriminador (el presupuesto DP solo
-        cuenta el discriminador).
+        Generator steps per discriminator step (the DP budget only counts the
+        discriminator).
     ecdf_epsilon:
-        Presupuesto DP para las ECDF de marginales (solo con ``numeric="uniform"``).
-        Se reparte equitativamente entre columnas numericas (histograma Laplace,
-        composicion paralela por bins y secuencial entre columnas). La garantia
-        total del sintetizador es la composicion secuencial de este presupuesto
-        con el del entrenamiento: ``epsilon_total = epsilon(acumulado) + ecdf_epsilon``
-        (el informe lo expone en ``accountant.ecdf_epsilon``/``total_epsilon``).
-        ``None`` usa la ECDF empirica cruda (sin garantia formal en el marginal).
+        DP budget for the marginals ECDFs (only with ``numeric="uniform"``).
+        Distributed equally across numeric columns (Laplace histogram,
+        parallel composition by bins and sequential across columns). The
+        synthesizer's total guarantee is the sequential composition of this
+        budget with the training one: ``total_epsilon = epsilon(accumulated) +
+        ecdf_epsilon`` (the report exposes it in ``accountant.ecdf_epsilon``/
+        ``total_epsilon``). ``None`` uses the raw empirical ECDF (no formal
+        guarantee on the marginal).
     """
 
     name = "dp-gan"
@@ -253,11 +255,11 @@ class DPSGDGenerator(BaseSynthesizer):
         self.ecdf_epsilon = self._encoder.dp_ecdf_epsilon
 
     # ------------------------------------------------------------------
-    # entrenamiento DP
+    # DP training
     # ------------------------------------------------------------------
     def _expected_noise(self) -> str:
         return (
-            f"epsilon objetivo {self.privacy.epsilon}, delta {self.privacy.delta}, "
+            f"target epsilon {self.privacy.epsilon}, delta {self.privacy.delta}, "
             f"n={self._n}, epochs={self.epochs}, batch={self.batch_size}"
         )
 
@@ -265,7 +267,7 @@ class DPSGDGenerator(BaseSynthesizer):
         self._encoder.fit(data)
         X = torch.from_numpy(self._encoder.transform(data))
         self._n = X.shape[0]
-        logger.info("dp-gan encodings: %d dims, condicion '%s' (%d clases), %d modos/num",
+        logger.info("dp-gan encodings: %d dims, condition '%s' (%d classes), %d modes/num",
                     self._encoder.total_dims, self._encoder.condition_column_,
                     self._encoder.n_cond, self._encoder.num_modes)
 
@@ -306,7 +308,7 @@ class DPSGDGenerator(BaseSynthesizer):
 
         bce = nn.BCEWithLogitsLoss()
         ce = nn.CrossEntropyLoss() if self._encoder.n_cond > 0 else None
-        logger.info("DP-GAN ajustando epsilon %s -> ruido %.3f (clipping %.2f)",
+        logger.info("DP-GAN adjusting epsilon %s -> noise %.3f (clipping %.2f)",
                     self._expected_noise(), bud.used_noise_multiplier, bud.max_grad_norm)
 
         self._disc_steps_actual = 0
@@ -340,10 +342,10 @@ class DPSGDGenerator(BaseSynthesizer):
 
                 z2 = torch.randn(b, self.latent_dim, device=DEVICE)
                 if ce is not None:
-                    # condicion balanceada en el paso del generador (estilo CTGAN):
-                    # si replicamos el batch real (90/10) el generador nunca aprende
-                    # las clases minoritarias. El discriminador si usa la cond real
-                    # para que no explote la frecuencia marginal de los fakes.
+                    # balanced condition in the generator step (CTGAN-style):
+                    # by replicating the real batch (90/10) the generator never
+                    # learns minority classes. The discriminator does use the real
+                    # condition so the fake marginal frequency does not explode.
                     cond_g = torch.eye(self._encoder.n_cond, device=DEVICE)[
                         torch.randint(self._encoder.n_cond, (b,), device=DEVICE)]
                     cond_idx_g = cond_g.argmax(dim=1)
@@ -379,17 +381,17 @@ class DPSGDGenerator(BaseSynthesizer):
         self._disc_steps_accounted = int(sum(e[2] for e in engine.accountant.history))
         self._generator = generator
         self._fitted = True
-        logger.info("Epsilon acumulado real (RDP accountant): %.3f (objetivo %.3f) "
-                    "en %d pasos DP", self.accounted_epsilon, bud.epsilon,
+        logger.info("Real accumulated epsilon (RDP accountant): %.3f (target %.3f) "
+                    "in %d DP steps", self.accounted_epsilon, bud.epsilon,
                     self._disc_steps_accounted)
         return self
 
     # ------------------------------------------------------------------
-    # muestreo
+    # sampling
     # ------------------------------------------------------------------
     def sample(self, num_rows: int = 1000, **kwargs) -> pd.DataFrame:
         if not self._fitted or self._generator is None:
-            raise RuntimeError("DPSGDGenerator no esta entrenado: llama a fit(real_data) primero.")
+            raise RuntimeError("DPSGDGenerator is not fitted: call fit(real_data) first.")
         z = torch.randn(num_rows, self.latent_dim, device=DEVICE)
         cond = self._encoder.sample_conditions(num_rows, self._rng)
         cond_t = torch.from_numpy(cond).to(DEVICE) if cond is not None else None
@@ -400,15 +402,15 @@ class DPSGDGenerator(BaseSynthesizer):
         return self._encoder.inverse(out)
 
     # ------------------------------------------------------------------
-    # aseguramiento DP
+    # DP assurance
     # ------------------------------------------------------------------
     def assert_dp(self, declared_epsilon: float | None = None, *,
                   tolerance: float = 0.05, delta: float | None = None) -> DpAssurance:
-        """Valida que la garantia DP declarada no se excede (pasos + presupuesto)."""
+        """Validate that the declared DP guarantee is not exceeded (steps + budget)."""
         return assert_dp(self, declared_epsilon, tolerance=tolerance, delta=delta)
 
     # ------------------------------------------------------------------
-    # persistencia: un fichero con config + encoder + pesos + contabilidad DP
+    # persistence: one file with config + encoder + weights + DP accounting
     # ------------------------------------------------------------------
     def get_params(self) -> dict[str, Any]:
         return {
@@ -434,10 +436,10 @@ class DPSGDGenerator(BaseSynthesizer):
         }
 
     def save(self, path: str | Path) -> Path:
-        """Persiste config + encoder + pesos + contabilidad DP en un fichero.
+        """Persist config + encoder + weights + DP accounting in one file.
 
-        El epsilon acumulado real y el ruido aplicado se conservan: al recargar,
-        la garantia DP declarada es la misma que cuando se entreno.
+        The real accumulated epsilon and the applied noise are kept: when
+        reloading, the declared DP guarantee is the same as when trained.
         """
         path = Path(path)
         payload = {
@@ -459,7 +461,7 @@ class DPSGDGenerator(BaseSynthesizer):
 
     @classmethod
     def load(cls, path: str | Path, **overrides) -> "DPSGDGenerator":
-        """Reconstruye un generador entrenado y su contabilidad DP desde ``path``."""
+        """Rebuild a trained generator and its DP accounting from ``path``."""
         payload = torch.load(path, map_location="cpu", weights_only=False)
         params = dict(payload.get("params", {}))
         params.update(overrides)

@@ -1,4 +1,4 @@
-"""Tests de serializacion: save/load de generadores y del sintetizador completo."""
+"""Serialization tests: save/load of generators and of the full synthesizer."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from synthpriv.privacy import DPSGD
 
 
 # ---------------------------------------------------------------------------
-# Generadores (wrappers SDV) - rapidos
+# Generators (SDV wrappers) - fast
 # ---------------------------------------------------------------------------
 
 def test_wrapper_roundtrip(real_data, tmp_path):
@@ -28,13 +28,13 @@ def test_wrapper_roundtrip(real_data, tmp_path):
 
 def test_wrapper_load_wrong_class_rejected(real_data, tmp_path):
     path = GaussianCopulaGenerator(random_state=0).fit(real_data).save(tmp_path / "g.pkl")
-    with pytest.raises(ValueError, match="se esperaba"):
+    with pytest.raises(ValueError, match="expected"):
         from synthpriv import CTGANGenerator
         CTGANGenerator.load(path)
 
 
 # ---------------------------------------------------------------------------
-# dp-gan - lento
+# dp-gan - slow
 # ---------------------------------------------------------------------------
 
 @pytest.mark.slow
@@ -49,11 +49,11 @@ def test_dpgan_save_load_preserves_privacy_and_generation(real_data, tmp_path):
     loaded = DPSGDGenerator.load(path)
 
     assert loaded.fitted
-    assert loaded.accounted_epsilon == original_eps          # garantia DP conservada
+    assert loaded.accounted_epsilon == original_eps          # DP guarantee preserved
     assert loaded.privacy.used_noise_multiplier == privacy.used_noise_multiplier
     out = loaded.sample(120)
     assert len(out) == 120
-    assert set(real_data.columns) <= set(out.columns)         # no reentrena nada
+    assert set(real_data.columns) <= set(out.columns)         # retrains nothing
     assert loaded._encoder.condition_column_ == "is_fraud"
 
 
@@ -77,10 +77,10 @@ def test_pipeline_save_load_model(real_data, tmp_path):
 
     restored = PrivacyPreservingSynthesizer.load_model(model)
     assert restored.generator.name == "dp-gan"
-    assert restored.accountant.get_epsilon() == expected_eps  # mismo espilon medido
+    assert restored.accountant.get_epsilon() == expected_eps  # same measured epsilon
     restored_sample = restored.sample(30)
     assert len(restored_sample) == 30
-    # el informe del modelo restaurado debe seguir reportando DP activo
+    # the restored model report must still show active DP
     report = restored.evaluate(real_data, restored_sample)
     assert report.data["privacy_mechanism"]["accountant"]["effective_epsilon"] == expected_eps
 

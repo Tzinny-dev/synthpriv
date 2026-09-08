@@ -1,7 +1,7 @@
-"""Generadores tabulares.
+"""Tabular generators.
 
-Wrappers finos sobre los sintetizadores de SDV single-table. Mantienen la
-interfaz ``BaseSynthesizer`` (fit/sample) y se registran en el registry.
+Thin wrappers over SDV single-table synthesizers. They keep the
+``BaseSynthesizer`` interface (fit/sample) and register in the registry.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ logger = get_logger("generators")
 
 
 class _SDVWrapper(BaseSynthesizer):
-    """Base para envolver un sintetizador single-table de SDV."""
+    """Base to wrap an SDV single-table synthesizer."""
 
     _sdv_class = None
 
@@ -41,7 +41,7 @@ class _SDVWrapper(BaseSynthesizer):
 
     @classmethod
     def _filter_sdv_kwargs(cls, kwargs: dict[str, Any]) -> dict[str, Any]:
-        """Descarta parametros que el sintetizador SDV no acepta."""
+        """Drop parameters the SDV synthesizer does not accept."""
         sig = inspect.signature(cls._sdv_class.__init__)
         allowed = set(sig.parameters) - {"self", "metadata"}
         return {k: v for k, v in kwargs.items() if k in allowed}
@@ -51,7 +51,7 @@ class _SDVWrapper(BaseSynthesizer):
         if metadata is None:
             metadata = Metadata.detect_from_dataframe(data)
         self._model = self._sdv_class(metadata, **self._kwargs)
-        logger.info("Entrenando %s sobre %d filas...", self.name, len(data))
+        logger.info("Training %s on %d rows...", self.name, len(data))
         self._model.fit(data, **kwargs)
         if self.metadata is None:
             self.metadata = metadata
@@ -66,7 +66,7 @@ class _SDVWrapper(BaseSynthesizer):
         return dict(self._kwargs)
 
     def save(self, path: str | Path) -> Path:
-        """Persiste modelo + metadata + kwargs en un unico fichero pickle."""
+        """Persist model + metadata + kwargs in a single pickle file."""
         payload = {
             "version": 1,
             "class": self.__class__.__name__,
@@ -87,7 +87,7 @@ class _SDVWrapper(BaseSynthesizer):
             payload = pickle.load(fh)
         if payload.get("name") != cls.name:
             raise ValueError(
-                f"El fichero guarda '{payload.get('name')}', se esperaba '{cls.name}'."
+                f"The file stores '{payload.get('name')}', expected '{cls.name}'."
             )
         obj = cls(metadata=payload.get("metadata"), **payload.get("kwargs", {}))
         obj._model = payload.get("model")
@@ -96,9 +96,9 @@ class _SDVWrapper(BaseSynthesizer):
         return obj
 
 
-@register_generator("ctgan", description="Conditional Tabular GAN (datos mixtos numericos/categoricos)")
+@register_generator("ctgan", description="Conditional Tabular GAN (mixed numeric/categorical data)")
 class CTGANGenerator(_SDVWrapper):
-    """CTGAN: modelo generativo adversario condicionado para tabulares."""
+    """CTGAN: conditional generative adversarial network for tabular data."""
 
     name = "ctgan"
     _sdv_class = CTGANSynthesizer
@@ -112,9 +112,9 @@ class CTGANGenerator(_SDVWrapper):
                          discriminator_dim=discriminator_dim, **kwargs)
 
 
-@register_generator("tvae", description="Variational Autoencoder tabular")
+@register_generator("tvae", description="Tabular Variational Autoencoder")
 class TVAEGenerator(_SDVWrapper):
-    """TVAE: autoencoder variacional para datos tabulares mixtos."""
+    """TVAE: variational autoencoder for mixed tabular data."""
 
     name = "tvae"
     _sdv_class = TVAESynthesizer
@@ -124,9 +124,9 @@ class TVAEGenerator(_SDVWrapper):
                          embedding_dim=embedding_dim, **kwargs)
 
 
-@register_generator("copula-gan", description="Copula + GAN para dependencias bivariadas")
+@register_generator("copula-gan", description="Copula + GAN for bivariate dependencies")
 class CopulaGANGenerator(_SDVWrapper):
-    """CopulaGAN: combina copulas gaussianas con la arquitectura CTGAN."""
+    """CopulaGAN: combines Gaussian copulas with the CTGAN architecture."""
 
     name = "copula-gan"
     _sdv_class = CopulaGANSynthesizer
@@ -138,9 +138,9 @@ class CopulaGANGenerator(_SDVWrapper):
                          discriminator_dim=discriminator_dim, **kwargs)
 
 
-@register_generator("gaussian-copula", description="Copula gaussiana (rapido, baseline)")
+@register_generator("gaussian-copula", description="Gaussian copula (fast, baseline)")
 class GaussianCopulaGenerator(_SDVWrapper):
-    """Copula gaussiana clasica: rapida, util como baseline y para tests."""
+    """Classic Gaussian copula: fast, useful as baseline and for tests."""
 
     name = "gaussian-copula"
     _sdv_class = GaussianCopulaSynthesizer

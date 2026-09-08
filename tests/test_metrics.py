@@ -29,7 +29,7 @@ def test_privacy_metrics_run(real_data, synth_data):
 
 
 def test_nndr_close_if_copies_reals():
-    """Sinteticos muy cercanos a registros reales => ratios < 1 (alto riesgo de copia)."""
+    """Synthetic rows very close to real records => ratios < 1 (high copy risk)."""
     import pandas as pd
 
     from synthpriv.metrics import evaluate_privacy
@@ -37,17 +37,17 @@ def test_nndr_close_if_copies_reals():
     real = pd.DataFrame({"a": [0, 0, 10, 10, 20]})
     synth = pd.DataFrame({"a": [0.4, 9.6, 19.7, 9.9, 0.3]})
     res = evaluate_privacy(real, synth, ["nndr"], {"nndr": {"sample": 10}})
-    assert res["nndr"].details["min_ratio"] < 0.1  # al menos un caso de casi-copia
+    assert res["nndr"].details["min_ratio"] < 0.1  # at least one near-copy case
     assert res["nndr"].details["pct_below_1"] > 0.0
 
-    # datos bien separados => ratios mayores (menos riesgo)
+    # well-separated data => higher ratios (less risk)
     far = pd.DataFrame({"a": [100.0, 110.0, 120.0, 130.0, 140.0]})
     res2 = evaluate_privacy(real, far, ["nndr"], {"nndr": {"sample": 10}})
     assert res2["nndr"].details["min_ratio"] > 1.0
 
 
 def test_mia_same_data_auc_low():
-    """Datos identicos -> indistinguibles -> AUC ~0.5 (baja distinguibilidad, buen resultado)."""
+    """Identical data -> indistinguishable -> AUC ~0.5 (low distinguishability, good result)."""
     import pandas as pd
 
     df = pd.DataFrame({"a": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]})

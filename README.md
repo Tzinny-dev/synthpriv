@@ -1,43 +1,46 @@
 # synthpriv
 
-Síntesis de **datos tabulares** preservando **privacidad diferencial**: generadores
-(`dp-gan` con DP-SGD, `dp-copula` con DP pura), ECDF de marginales DP, benchmark y
-sweep de presupuesto, y un informe HTML de privacidad/utilidad. Construido sobre
-[SDV](https://docs.sdv.dev/), [SDMetrics](https://docs.sdv.dev/sdmetrics) y
-[Opacus](https://opacus.ai) para privacidad diferencial (DP-SGD) con accountant RDP.
+**Tabular data synthesis preserving differential privacy**: generators
+(`dp-gan` with DP-SGD, `dp-copula` with pure DP), DP marginal ECDFs, benchmark and
+budget sweep, and an HTML privacy/utility report. Built on
+[SDV](https://docs.sdv.dev/), [SDMetrics](https://docs.sdv.dev/sdmetrics) and
+[Opacus](https://opacus.ai) for differential privacy (DP-SGD) with an RDP accountant.
 
-El proyecto se desarrolla por fases acumulativas, cada una con su batería de tests y su commit.
+The project evolves in cumulative phases, each with its own test suite and commit.
 
-## Fases implementadas
+## Implemented phases
 
-| Fase | Commit | Qué aporta |
+| Phase | Commit | What it adds |
 |---|---|---|
-| 0 | `ebb3700` | Núcleo: registrador de generadores, base, pipeline, informe HTML, CLI |
-| 1 | `ebb3700` | Generadores tabulares sobre SDV (`ctgan`, `tvae`, `copula-gan`, `gaussian-copula`) |
-| 2 | `ebb3700` | DP real: `dp-gan` con DP-SGD + accountant RDP y epsilon medido |
-| 3 | `6d21828` | Utilidad del `dp-gan`: condicionamiento AC-GAN estilo CTGAN, cobertura de clases minoritarias |
-| 4 | `1dc5108` | Barrido `epsilon ↔ utilidad` (curva privacidad/utilidad) |
-| 5 | `2c2b05e` | Serialización: `save_model` / `load_model` (regenerar sin reentrenar) |
-| 6 | `603445f` | `assert_dp`: validación de integridad de pasos DP y presupuesto ε |
-| 7 | `90b485f` | Docs + demo reproducible end-to-end (README, `examples/demo.py`) |
-| 8 | `e979fb7` | Benchmark `dp-gan` vs baselines SDV sin DP (curvas de utilidad + gap) |
-| 9 | `6001540` | Endurecimiento de utilidad del `dp-gan`: `numeric="uniform"` (gaussianización + cuantil interpolado), `rectify_marginals` (KS garantizado), `label_smoothing`; diagnóstico y límites documentados |
-| 10 | `0194a23` | `DPEcdf`: ECDF de marginales con historia Laplace (ε por columna, composición paralela por bins); `ecdf_epsilon` con composición secuencial con el entrenamiento (`total_epsilon` en el informe) |
-| 11 | *(esta fase)* | `dp-copula`: cópula gaussiana privada (DP pura, δ=0) — corriendo la dependencia, el punto débil del `dp-gan` |
+| 0 | `ebb3700` | Core: generator registry, base classes, pipeline, HTML report, CLI |
+| 1 | `ebb3700` | SDV tabular generators (`ctgan`, `tvae`, `copula-gan`, `gaussian-copula`) |
+| 2 | `ebb3700` | Real DP: `dp-gan` with DP-SGD + RDP accountant and measured epsilon |
+| 3 | `6d21828` | `dp-gan` utility: AC-GAN conditioning (CTGAN-style), minority class coverage |
+| 4 | `1dc5108` | `epsilon ↔ utility` sweep (privacy/utility curve) |
+| 5 | `2c2b05e` | Serialization: `save_model` / `load_model` (regenerate without retraining) |
+| 6 | `603445f` | `assert_dp`: DP step integrity and epsilon budget validation |
+| 7 | `90b485f` | Docs + reproducible end-to-end demo (README, `examples/demo.py`) |
+| 8 | `e979fb7` | `dp-gan` benchmark vs non-DP SDV baselines (utility curves + gap) |
+| 9 | `6001540` | `dp-gan` utility hardening: `numeric="uniform"` (gaussianization + interpolated quantile), `rectify_marginals` (guaranteed KS), `label_smoothing`; documented diagnosis and limits |
+| 10 | `0194a23` | `DPEcdf`: marginal ECDF with Laplace noise (epsilon per column, parallel composition by bins); `ecdf_epsilon` with sequential composition with training (`total_epsilon` in the report) |
+| 11 | `6458cfa` | `dp-copula`: private Gaussian copula (pure DP, δ=0) — captures dependence, the `dp-gan` weak spot |
+| 12 | `d1296ad` | `split_budget`: split DP budget between training and marginals |
+| — | `84f4fef` | Fix: HTML report without DP-ECDF (`ecdf_epsilon`/`total_epsilon` keys always present) |
+| — | `b939af3` | Build: PyPI publication prep (MIT license, PEP 639/URIs/classifiers, dev extras build+twine, README intro) |
 
-## Instalación
+## Installation
 
 ```bash
 python -m venv .venv
-.venv/bin/pip install -e ".[dev]"   # (usa CUDA si está disponible)
+.venv/bin/pip install -e ".[dev]"   # (uses CUDA if available)
 ```
 
-Dependencias: Python ≥ 3.10, numpy, pandas, scipy, scikit-learn, SDV < 2, SDMetrics,
+Dependencies: Python ≥ 3.10, numpy, pandas, scipy, scikit-learn, SDV < 2, SDMetrics,
 anonymeter, Opacus, click, Jinja2.
 
-## Uso rápido
+## Quick start
 
-### API Python
+### Python API
 
 ```python
 from synthpriv import PrivacyPreservingSynthesizer
@@ -53,183 +56,187 @@ synth = PrivacyPreservingSynthesizer(
 )
 synthetic = synth.generate(real_df, num_rows=5000)   # fit + sample
 report = synth.evaluate(real_df, synthetic)
-report.save("report.html")                          # informe HTML autocontenido
+report.save("report.html")                          # self-contained HTML report
 
-# persiste y regenera sin reentrenar
+# persist and regenerate without retraining
 synth.save_model("demo_model.sz")
 loaded = PrivacyPreservingSynthesizer.load_model("demo_model.sz")
 loaded.sample(5000).to_csv("resample.csv", index=False)
 
-# valida la garantía DP
+# validate the DP guarantee
 assurance = loaded.assert_dp()
 print(assurance.status, assurance.message)
 ```
 
-> Nota: en `generator_kwargs` no pases `random_state` a `PrivacyPreservingSynthesizer`
-> cuando éste ya lo recibe en el constructor (conflicto con el del constructor).
+> Note: do not pass `random_state` in `generator_kwargs` when the synthesizer
+> already receives it in the constructor (conflict with the constructor's one).
 
 ### CLI
 
 ```bash
-# generar con garantía DP
+# generate with a DP guarantee
 synthpriv generate --data real.csv --epsilon 8 --rows 5000 --save demo_model.sz -o synthetic.csv
 
-# regenerar sin reentrenar (mismo epsilon contabilizado)
+# regenerate without retraining (same accounted epsilon)
 synthpriv sample --model demo_model.sz --rows 5000 -o resample.csv
 
-# evaluar utilidad y privacidad
+# evaluate utility and privacy
 synthpriv evaluate --real real.csv --synthetic synthetic.csv --epsilon 8 -o report.html
 
-# barrido epsilon <-> utilidad
+# epsilon <-> utility sweep
 synthpriv sweep --data real.csv --epsilons "0.1,0.5,1,2,5,50" -o sweep_report.html
 
-# benchmark dp-gan vs generadores SDV sin DP (curvas + gap de utilidad)
+# benchmark dp-gan vs non-DP SDV generators (curves + utility gap)
 synthpriv benchmark --data real.csv --epsilons "1,5,50" --baselines gaussian-copula -o bench.html
 
-# auditar que la garantía DP de un modelo persistido no se excede
+# audit that a persisted model's DP guarantee is not exceeded
 synthpriv dpcheck --model demo_model.sz --tolerance 0.05
 ```
 
-### Demo reproducible
+### Reproducible demo
 
 ```bash
 .venv/bin/python examples/demo.py [epsilon] [epochs]
 ```
 
-Entrena el `dp-gan` sobre un dataset de ejemplo, genera, evalúa, persiste/recarga,
-regenera y ejecuta `assert_dp`. Artefactos en `/tmp/synthpriv_demo/`.
+Trains `dp-gan` on a sample dataset, generates, evaluates, persists/reloads,
+regenerates and runs `assert_dp`. Artifacts under `/tmp/synthpriv_demo/`.
 
-## Mecánica de privacidad diferencial
+## Differential privacy mechanics
 
-- **Solo el discriminador entrena con DP-SGD** (recorte de gradiente + ruido, muestreo
-  de Poisson). El generador es post-proceso del discriminador, por lo que el resultado
-  es DP con el epsilon contabilizado por el accountant RDP de Opacus.
-- El **epsilon acumulado real** (`accountant.get_epsilon()`) es el que se reporta, no el
-  objetivo: dependerá del tamaño de muestra, epochs y ruido resultante.
-- `assert_dp` comprueba dos condiciones sobre un modelo (persistido o en memoria):
-  1. **Integridad de pasos**: los pasos DP contabilizados por el accountant == los
-     ejecutados por el discriminador en el entrenamiento.
-  2. **Presupuesto**: epsilon medido ≤ epsilon declarado × (1 + tolerancia).
+- **Only the discriminator trains with DP-SGD** (gradient clipping + noise, Poisson
+  sampling). The generator is post-processing of the discriminator, so the result is
+  DP with the epsilon accounted by Opacus's RDP accountant.
+- The **real accumulated epsilon** (`accountant.get_epsilon()`) is what is reported,
+  not the target: it depends on sample size, epochs and resulting noise.
+- `assert_dp` checks two conditions on a model (persisted or in memory):
+  1. **Step integrity**: the DP steps accounted by the accountant == those executed
+     by the discriminator during training.
+  2. **Budget**: measured epsilon ≤ declared epsilon × (1 + tolerance).
 
-  Si cualquiera falla, el estado es `fail` y la garantía RDP queda en entredicho.
+  If either fails, the state is `fail` and the RDP guarantee is in question.
 
-### Mecanismos
+### Mechanisms
 
-- `NoPrivacy()` — sin garantía formal (solo mitigación empírica + métricas de riesgo).
-- `DPSGD(epsilon=1.0, delta=1e-5)` — DP-SGD (Opacus) con el generador `dp-gan`; también
-  configura el presupuesto total del generador `dp-copula` (que es DP pura, δ=0).
-  `noise_multiplier`: si se fija se usa ese ruido; si no, Opacus lo calcula para alcanzar
-  el presupuesto. Tras entrenar, `used_noise_multiplier` guarda el aplicado.
+- `NoPrivacy()` — no formal guarantee (only empirical mitigation + risk metrics).
+- `DPSGD(epsilon=1.0, delta=1e-5)` — DP-SGD (Opacus) for the `dp-gan` generator; it
+  also configures the total budget for the `dp-copula` generator (pure DP, δ=0).
+  `noise_multiplier`: if set, that noise is used; otherwise Opacus computes it to
+  reach the budget. After training, `used_noise_multiplier` holds the applied value.
 
-## Generadores
+## Generators
 
-| Clave | Descripción | DP |
+| Key | Description | DP |
 |---|---|---|
-| `gaussian-copula` | Cópula gaussiana (rápido, determinista) | no |
-| `ctgan` | GAN tabular (SDV) | no |
-| `tvae` | Autoencoder variacional tabular (SDV) | no |
-| `copula-gan` | GAN con normalización cópula (SDV) | no |
-| `dp-gan` | GAN MLP propia con DP-SGD y condicionamiento AC-GAN | sí |
-| `dp-copula` | Cópula gaussiana privada: ECDF Laplace + correlación privada (rápida) | sí |
+| `gaussian-copula` | Gaussian copula (fast, deterministic) | no |
+| `ctgan` | Tabular GAN (SDV) | no |
+| `tvae` | Tabular variational autoencoder (SDV) | no |
+| `copula-gan` | GAN with copula normalization (SDV) | no |
+| `dp-gan` | Custom MLP GAN with DP-SGD and AC-GAN conditioning | yes |
+| `dp-copula` | Private Gaussian copula: Laplace ECDF + private correlation (fast) | yes |
 
 ### `dp-copula`
 
-Modelo paramétrico que ataca el punto débil del `dp-gan` (la estructura de dependencia)
-con **DP pura** (δ=0, todos los sub-mecanismos son Laplace). El presupuesto total se reparte
-en `margins_fraction` (≈ default 0.4, ECDF privadas por columna), `corr_fraction`
-(≈ default 0.4, matriz de correlación perturbada con Laplace entrada a entrada y proyectada
-a PSD) y el resto en frecuencias categóricas. En datasets numéricos puros todo el sobrante
-va a la cópula. Benchmark sobre datos correlacionados: correlación aprendida ≈0.61 frente a
-0.60 real (dp-gan ≈0.72-0.83) con ε=1-5. En CLI:
+Parametric model that attacks the `dp-gan` weak spot (the dependence structure)
+with **pure DP** (δ=0, all sub-mechanisms are Laplace). The total budget is split
+into `margins_fraction` (≈ default 0.4, private ECDFs per column), `corr_fraction`
+(≈ default 0.4, per-entry Laplace-perturbed correlation matrix projected to PSD)
+and the rest into categorical frequencies. On purely numeric datasets the whole
+remainder goes to the copula. Benchmark on correlated data: learned correlation
+≈0.61 vs 0.60 real (dp-gan ≈0.72-0.83) at ε=1-5. In the CLI:
 `synthpriv generate --method dp-copula --epsilon E`.
 
 ### `dp-gan`
 
-Solo el discriminador ve datos reales y entrena con DP-SGD. Hiperparámetros relevantes:
+Only the discriminator sees real data and trains with DP-SGD. Relevant hyperparameters:
 
-- `privacy` — mecanismo `DPSGD` con ε/δ objetivo.
-- `num_modes` (3) — `ModeEncoder` Gaussian Mixture por columna numérica; `1` = z-score.
-- `numeric` (`"mode"`) — codificación de las numéricas: `"mode"` (modo-specific, mix de
-  Gauss) o `"uniform"` (rango percentil gaussianizado `Φ⁻¹(rank)` + cuantil empírico).
-  `"uniform"` maneja mucho mejor colas y es la opción recomendada cuando el marginal
-  importa; el inverso interpola entre cuantiles (no devuelve valores reales exactos).
-- `rectify_marginals` (`False`) — solo con `numeric="uniform"`: rectifica al muestrear los
-  marginales continuos al ECDF real (transformación monótona por columna, preserva la
-  cópula). Garantiza KS ≈ 1 para las numéricas; comparte el trade-off de cuantiles
-  empíricos en el marginal (utilidad vs. fuga per-columna) documentado en Limitaciones.
-- `condition_column` (`None`) — columna que condiciona la generación; `None` elige la más
-  imbalanced (menor entropía) para que las clases minoritarias no colapsen.
-- `aux_lambda` (1.0) — peso de las pérdidas auxiliares (clasificador + consistencia de clase).
-- `generator_steps` (2) — pasos del generador por paso del discriminador (el presupuesto DP
-  solo cuenta el discriminador).
-- `label_smoothing` (0.0) — suavizado de etiquetas del discriminador; útil para estabilizar.
-- `ecdf_epsilon` (`None`) — presupuesto DP de los **marginales** (solo con `numeric="uniform"`):
-  construye una ECDF privada por columna (histograma Laplace, ε por columna = `ecdf_epsilon /
-  nº numéricas`, composición paralela por bins). La garantía **total** del sintetizador es la
-  composición secuencial `epsilon(acumulado) + ecdf_epsilon` (aditiva y exacta: la ECDF es DP
-  pura, δ=0), que el informe expone en `accountant.ecdf_epsilon` / `accountant.total_epsilon`.
-  Con `None` la ECDF es la empírica cruda (sin garantía formal en el marginal). En CLI:
-  `synthpriv generate --epsilon E --ecdf-epsilon EE`.
-- `ecdf_bounds` (`None`) — soporte **público** `(min, max)` de las ECDF privadas. Con
-  `bounds` la garantía es DP pura estricta (cuadrícula fija, sin rango derivado de datos);
-  sin él el soporte se deriva de los cuantiles 0.001/0.999 (con margen) y se emite un
-  warning documentando ese matiz.
-- Reparto de presupuesto — `from synthpriv import split_budget; b = split_budget(total=10.0,
-  margins_fraction=0.3)` devuelve `b.train` (para `epsilon`) y `b.margins` (para
-  `ecdf_epsilon`), con `b.total = train + margins`. El total con `dp-gan` es exactamente
-  aditivo.
+- `privacy` — `DPSGD` mechanism with target ε/δ.
+- `num_modes` (3) — `ModeEncoder` Gaussian Mixture per numeric column; `1` = z-score.
+- `numeric` (`"mode"`) — numeric encoding: `"mode"` (mode-specific, mix of Gaussians)
+  or `"uniform"` (gaussianized percentile range `Φ⁻¹(rank)` + empirical quantile).
+  `"uniform"` handles tails much better and is the recommended option when the
+  marginal matters; its inverse interpolates between quantiles (does not return
+  exact real values).
+- `rectify_marginals` (`False`) — only with `numeric="uniform"`: rectifies at sample
+  time the continuous marginals to the real ECDF (monotone per-column transformation,
+  preserves the copula). Guarantees KS ≈ 1 for the numerics; it shares the
+  per-column empirical-quantile trade-off (utility vs. leakage) documented in
+  Limitations.
+- `condition_column` (`None`) — column that conditions generation; `None` picks the
+  most imbalanced one (lowest entropy) so minority classes do not collapse.
+- `aux_lambda` (1.0) — weight of auxiliary losses (classifier + class consistency).
+- `generator_steps` (2) — generator steps per discriminator step (the DP budget only
+  counts the discriminator).
+- `label_smoothing` (0.0) — discriminator label smoothing; useful for stability.
+- `ecdf_epsilon` (`None`) — DP budget for the **marginals** (only with
+  `numeric="uniform"`): builds a private ECDF per column (Laplace histogram, ε per
+  column = `ecdf_epsilon / #numeric`, parallel composition by bins). The
+  synthesizer's **total** guarantee is the sequential composition
+  `epsilon(accumulated) + ecdf_epsilon` (additive and exact: the ECDF is pure DP,
+  δ=0), exposed in the report as `accountant.ecdf_epsilon` / `accountant.total_epsilon`.
+  With `None` the ECDF is the raw empirical one (no formal guarantee on the marginal).
+  CLI: `synthpriv generate --epsilon E --ecdf-epsilon EE`.
+- `ecdf_bounds` (`None`) — **public** support `(min, max)` of the private ECDFs. With
+  `bounds` the guarantee is strictly pure DP (fixed grid, no data-derived range);
+  without them the support is derived from the 0.001/0.999 quantiles (with margin)
+  and a warning documents that nuance.
+- Budget split — `from synthpriv import split_budget; b = split_budget(total=10.0,
+  margins_fraction=0.3)` returns `b.train` (for `epsilon`) and `b.margins` (for
+  `ecdf_epsilon`), with `b.total = train + margins`. The `dp-gan` total is exactly
+  additive.
 
-Resultados de la fase de endurecimiento (dataset tabular con correlaciones reales,
-1500 filas, `numeric="uniform"` + `rectify_marginals`): KS ≈ 1.0 en los tres numéricos
-para ε = 1/5/25 y `ml_utility` a la par de la cópula gaussiana de SDV (≈0.35). La cópula
-sigue ganando en correlaciones (corrMAE ≈0.02 vs ≈0.2–0.37): la estructura de dependencia
-es lo que menos aprende un DP-GAN MLP en datasets pequeños (ver Limitaciones).
+Hardening phase results (tabular dataset with real correlations, 1500 rows,
+`numeric="uniform"` + `rectify_marginals`): KS ≈ 1.0 on all three numerics for
+ε = 1/5/25 and `ml_utility` on par with SDV's Gaussian copula (≈0.35). The copula
+still wins on correlations (corrMAE ≈0.02 vs ≈0.2–0.37): the dependence structure
+is what an MLP DP-GAN learns least on small datasets (see Limitations).
 
-## Métricas
+## Metrics
 
-- **Utilidad**: KS (distribuciones), MAE de correlaciones, utilidad ML (TSTR).
-- **Privacidad**: NNDR (distancia al vecino real más cercano), AUC de ataques de
-  inferencia (MIA) y ataques de anonymeter.
+- **Utility**: KS (distributions), correlation MAE, ML utility (TSTR).
+- **Privacy**: NNDR (distance to nearest real neighbor), inference attack AUC (MIA)
+  and anonymeter attacks.
 
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest -q              # fast (por defecto)
-.venv/bin/python -m pytest -m slow -q      # entrena modelos profundos
+.venv/bin/python -m pytest -q              # fast (default)
+.venv/bin/python -m pytest -m slow -q      # trains deep models
 ```
 
 - `test_registry`, `test_generators`, `test_metrics`, `test_pipeline`, `test_cli`
-- `test_dp` (DP end-to-end + cobertura de clases minoritarias)
-- `test_sweep` (barrido ε-utilidad)
-- `test_benchmark` (benchmark dp-gan vs baselines: estructura, gaps, reportes)
-- `test_serialization` (persistencia/recarga)
-- `test_assurance` (integridad de pasos DP y presupuesto)
+- `test_dp` (end-to-end DP + minority class coverage)
+- `test_sweep` (ε-utility sweep)
+- `test_benchmark` (dp-gan vs baselines: structure, gaps, reports)
+- `test_serialization` (persistence/reload)
+- `test_assurance` (DP step integrity and budget)
 
-## Limitaciones
+## Limitations
 
-- El `dp-gan` es una GAN MLP: para datasets numéricos/categóricos pequeños, no para
-  imágenes ni secuencias.
-- La garantía DP depende del accountant RDP de Opacus y del muestreo de Poisson; auditoría
-  formal con librerías dedicadas queda fuera de alcance.
-- `assert_dp` valida la integridad del **DP-SGD del entrenamiento** (pasos + presupuesto). Si
-  además usas `ecdf_epsilon`, la garantía **total** del sintetizador es la composición
-  `epsilon(acumulado) + ecdf_epsilon` (aditiva y exacta: la ECDF es DP pura, δ=0); el
-  informe y el mensaje de `assert_dp` la muestran.
-- Con `ecdf_epsilon`, el presupuesto de marginales se reparte **equitativamente entre
-  columnas** y el soporte de cada ECDF se recorta a los cuantiles empíricos 0.001/0.999
-  (+margen): los extremos exactos no se emiten ni se publican, a cambio de un ligero recorte
-  del rango generado.
-- Aunque `dp-gan` respeta el presupuesto, la utilidad real a ε bajo depende del dataset
-  (ver el barrido `synthpriv sweep`).
-- La estructura de dependencia (correlaciones) es el punto débil del `dp-gan`: en datasets
-  pequeños aprendida parcialmente y con ruido; ahí las cópulas (SDV) son más precisas.
-- Con `numeric="uniform"` el marginal queda ligado a los cuantiles empíricos reales
-  (interpolados), lo que da utilidad fuerte pero comparte información per-columna; se
-  recomienda con `rectify_marginals=True` solo cuando la utilidad del marginal es prioritaria
-  frente a esa consideración.
+- `dp-gan` is an MLP GAN: for small numeric/categorical datasets, not for images or
+  sequences.
+- The DP guarantee relies on Opacus's RDP accountant and Poisson sampling; formal
+  audit with dedicated libraries is out of scope.
+- `assert_dp` validates the integrity of the **training DP-SGD** (steps + budget). If
+  you also use `ecdf_epsilon`, the synthesizer's **total** guarantee is the
+  composition `epsilon(accumulated) + ecdf_epsilon` (additive and exact: the ECDF is
+  pure DP, δ=0); the report and the `assert_dp` message show it.
+- With `ecdf_epsilon`, the marginal budget is split **equally across columns** and the
+  support of each ECDF is trimmed to the empirical 0.001/0.999 quantiles (+margin):
+  exact extremes are neither emitted nor published, at the cost of a slight
+  generated-range trim.
+- Although `dp-gan` respects the budget, real utility at low ε depends on the dataset
+  (see the `synthpriv sweep` sweep).
+- The dependence structure (correlations) is the `dp-gan` weak spot: partially learned
+  and noisy on small datasets; there copulas (SDV) are more accurate.
+- With `numeric="uniform"` the marginal is tied to the real empirical quantiles
+  (interpolated), which gives strong utility but shares per-column information; use it
+  with `rectify_marginals=True` only when marginal utility is the priority over that
+  consideration.
 
-## Nota de privacidad
+## Privacy note
 
-Los datos sintéticos **sin DP no son anonimización garantizada**. El informe sugiere
-qué nivel de ε usar y qué riesgo empírico se mide, pero la protección formal solo la da
-entrenar con un mecanismo DP (`DPSGD` + `dp-gan`) y verificarla con `assert_dp`.
+Synthetic data **without DP is not guaranteed anonymization**. The report suggests
+which ε level to use and which empirical risk is measured, but formal protection only
+comes from training with a DP mechanism (`DPSGD` + `dp-gan`) and verifying it with
+`assert_dp`.

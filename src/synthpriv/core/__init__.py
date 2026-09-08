@@ -1,4 +1,4 @@
-"""Nucleo de synthpriv: contratos de generadores, registro y utilidades."""
+"""synthpriv core: generator contracts, registry and utilities."""
 
 from synthpriv.core import base, registry
 

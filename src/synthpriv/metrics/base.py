@@ -1,11 +1,11 @@
-"""Modelo de resultados de metricas y evaluacion de umbrales."""
+"""Metric result model and threshold evaluation."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any
 
-# Estados posibles de una metrica.
+# Possible states of a metric.
 PASSED = "passed"
 FAILED = "failed"
 REPORTED = "reported"
@@ -14,7 +14,7 @@ ERROR = "error"
 
 @dataclass
 class MetricResult:
-    """Resultado de una metrica unica."""
+    """Result of a single metric."""
 
     name: str
     description: str = ""
@@ -35,9 +35,9 @@ def evaluate_status(
     threshold: float | None,
     direction: str,
 ) -> tuple[str, str]:
-    """Decide estado PASSED/FAILED/REPORTED comparando contra un umbral."""
+    """Decide PASSED/FAILED/REPORTED status by comparing against a threshold."""
     if threshold is None or value is None:
-        return REPORTED, "Sin umbral configurado; solo se reporta el valor."
+        return REPORTED, "No threshold configured; value is only reported."
     if direction == "higher_is_better":
         ok = value >= threshold
         op = ">="
@@ -45,17 +45,17 @@ def evaluate_status(
         ok = value <= threshold
         op = "<="
     else:
-        return REPORTED, "Direccion 'none': sin comparacion automatica."
+        return REPORTED, "Direction 'none': no automatic comparison."
     status = PASSED if ok else FAILED
-    return status, f"Valor {value:.4f} vs umbral {threshold:.4f} ({op})"
+    return status, f"Value {value:.4f} vs threshold {threshold:.4f} ({op})"
 
 
 def summarize(results: dict[str, MetricResult]) -> dict[str, int]:
-    """Cuenta estados para el resumen del informe."""
+    """Count statuses for the report summary."""
     counts = {s: 0 for s in (PASSED, FAILED, REPORTED, ERROR)}
     for res in results.values():
         if res.status in counts:
             counts[res.status] += 1
-        else:  # pragma: no cover - defensivo
+        else:  # pragma: no cover - defensive
             counts[REPORTED] += 1
     return counts

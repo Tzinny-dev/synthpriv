@@ -1,8 +1,8 @@
-"""Contratos base para generadores de datos sinteticos.
+"""Base contracts for synthetic data generators.
 
-Todos los generadores de synthpriv implementan ``BaseSynthesizer``.
-La interfaz minima es ``fit`` + ``sample``, de modo que los callers
-(pipeline, CLI, REST) son agnosticos al algoritmo concreto.
+All synthpriv generators implement ``BaseSynthesizer``.
+The minimal interface is ``fit`` + ``sample``, so callers
+(pipeline, CLI, REST) are agnostic to the concrete algorithm.
 """
 
 from __future__ import annotations
@@ -17,13 +17,13 @@ from synthpriv.utils import check_fitted
 
 
 class BaseSynthesizer(ABC):
-    """Interfaz comun para cualquier generador de datos sinteticos.
+    """Common interface for any synthetic data generator.
 
     Parameters
     ----------
     metadata:
-        Metadatos opcionales (p.ej. ``SingleTableMetadata`` de SDV o dict).
-        Si es ``None``, el generador los infiere en ``fit``.
+        Optional metadata (e.g. SDV ``SingleTableMetadata`` or a dict).
+        If ``None``, the generator infers it in ``fit``.
     """
 
     name: str = "base"
@@ -36,42 +36,42 @@ class BaseSynthesizer(ABC):
 
     @property
     def fitted(self) -> bool:
-        """True si ``fit`` se ha completado correctamente."""
+        """True if ``fit`` completed successfully."""
         return self._fitted
 
     @property
     def model(self):
-        """Modelo subyacente entrenado (depende de la implementacion)."""
+        """Trained underlying model (implementation-specific)."""
         return self._model
 
     @abstractmethod
     def fit(self, data: pd.DataFrame) -> "BaseSynthesizer":
-        """Entrena el generador sobre los datos reales."""
+        """Train the generator on the real data."""
 
     @abstractmethod
     def sample(self, num_rows: int = 1000, **kwargs) -> pd.DataFrame:
-        """Genera ``num_rows`` registros sinteticos."""
+        """Generate ``num_rows`` synthetic records."""
 
     def fit_and_sample(self, data: pd.DataFrame, num_rows: int = 1000, **kwargs) -> pd.DataFrame:
-        """Atajo: ``fit`` + ``sample`` en un solo paso."""
+        """Shortcut: ``fit`` + ``sample`` in a single step."""
         self.fit(data)
         return self.sample(num_rows=num_rows, **kwargs)
 
     def get_params(self) -> dict[str, Any]:
-        """Parametros de configuracion reproducibles (para guardar/reesperar)."""
+        """Reproducible configuration parameters (for save/resample)."""
         return {}
 
     # ------------------------------------------------------------------
-    # persistencia
+    # persistence
     # ------------------------------------------------------------------
     def save(self, path: str | Path) -> Path:
-        """Persiste el generador entrenado en ``path`` (formato por implementacion)."""
-        raise NotImplementedError(f"{self.__class__.__name__} no implementa save()")
+        """Persist the trained generator to ``path`` (implementation-defined format)."""
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement save()")
 
     @classmethod
     def load(cls, path: str | Path) -> "BaseSynthesizer":
-        """Reconstruye un generador entrenado desde ``path``."""
-        raise NotImplementedError(f"{cls.__name__} no implementa load()")
+        """Rebuild a trained generator from ``path``."""
+        raise NotImplementedError(f"{cls.__name__} does not implement load()")
 
-    def __repr__(self) -> str:  # pragma: no cover - utilidad de depuracion
+    def __repr__(self) -> str:  # pragma: no cover - debugging aid
         return f"<{self.__class__.__name__} name={self.name!r} fitted={self.fitted}>"

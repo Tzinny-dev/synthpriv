@@ -22,7 +22,7 @@ def test_sample_before_fit_raises(real_data):
 def test_check_fitted_positive(real_data):
     gen = GaussianCopulaGenerator()
     gen.fit(real_data)
-    check_fitted(gen)  # no debe lanzar
+    check_fitted(gen)  # should not raise
 
 
 def test_categorical_values_preserved(real_data):
@@ -34,7 +34,7 @@ def test_categorical_values_preserved(real_data):
 
 @pytest.mark.slow
 def test_ctgan_smoke(real_data):
-    """Comprobacion de humo con pocas epochs (no se ejecuta por defecto)."""
+    """Smoke check with few epochs (not run by default)."""
     from synthpriv import CTGANGenerator
 
     gen = CTGANGenerator(epochs=1, batch_size=100)

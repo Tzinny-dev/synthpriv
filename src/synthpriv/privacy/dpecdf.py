@@ -1,22 +1,22 @@
-"""ECDF con garantia formal de privacidad diferencial (Laplace / histograma).
+"""ECDF with a formal differential privacy guarantee (Laplace / histogram).
 
-Mecanismo: histograma con recuentos ruidosos Laplace para cada columna numerica.
+Mechanism: histogram with Laplace-noisy counts for each numeric column.
 
-- Sensibilidad por bin = 1 (anadir/quitar una fila mueve como mucho en 1 cada
-  recuento) y los bins particionan los datos de forma disjunta: por composicion
-  **paralela**, toda la columna consume un unico ``epsilon`` (ruido Laplace de
-  escala ``1/epsilon`` por bin).
-- Las columnas son disjuntas entre si pero no particion del mismo dato, asi que
-  el presupuesto total se reparte secuencialmente entre columnas: cada columna
-  usa ``epsilon_total / n_columnas``.
-- El rango de la cuadricula se recorta a los cuantiles empiricos 0.001/0.999
-  (con un margen), evitando publicar los extremos exactos; los valores fuera de
-  ese soporte no se emiten.
-- La funcion de cuantil (inversa de la ECDF ruidosa, suavizada de forma
-  monotona y por interpolacion lineal) es post-proceso de la salida DP, por lo
-  que no consume presupuesto adicional. Emitir valores desde esta inversa
-  mantiene la garantia DP por columna; la composicion con el DP-SGD del
-  entrenamiento da la garantia total del sintetizador.
+- Sensitivity per bin = 1 (adding/removing a row moves each count by at most 1)
+  and the bins partition the data disjointly: by **parallel** composition, the
+  whole column consumes a single ``epsilon`` (Laplace noise of scale ``1/epsilon``
+  per bin).
+- Columns are mutually disjoint but not a partition of the same datum, so the
+  total budget is split sequentially across columns: each column uses
+  ``total_epsilon / n_columns``.
+- The grid range is trimmed to the empirical 0.001/0.999 quantiles (with a
+  margin), avoiding the publication of exact extremes; values outside that
+  support are not emitted.
+- The quantile function (inverse of the noisy ECDF, smoothed monotonically and
+  by linear interpolation) is post-processing of the DP output, so it consumes
+  no extra budget. Emitting values from this inverse keeps the per-column DP
+  guarantee; composition with the training DP-SGD gives the synthesizer's total
+  guarantee.
 """
 
 from __future__ import annotations
@@ -31,53 +31,53 @@ logger = get_logger("dp")
 
 
 class DPEcdf:
-    """ECDF privada por columna basada en histograma Laplace.
+    """Private per-column ECDF based on a Laplace histogram.
 
     Parameters
     ----------
     epsilon:
-        Presupuesto DP de esta columna (0 < epsilon <= presupuesto total de
-        marginales / n_columnas). El resto del sintetizador debe componerlo con
-        el epsilon del entrenamiento (``ecdf_epsilon + effective_epsilon``).
+        DP budget of this column (0 < epsilon <= total marginals budget /
+        n_columns). The rest of the synthesizer must compose it with the
+        training epsilon (``ecdf_epsilon + effective_epsilon``).
     bins:
-        Numero de intervalos de igual anchura sobre el soporte recortado.
+        Number of equal-width intervals over the trimmed support.
     q_low/q_high:
-        Cuantiles (0..1) que definen el soporte de la cuadricula cuando no se
-        dan ``bounds``; los valores fuera se agrupan en los bordes via el recorte
-        del rango.
+        Quantiles (0..1) defining the grid support when ``bounds`` are not
+        given; out-of-range values are aggregated at the edges via range
+        clipping.
     bounds:
-        Soporte **publico** ``(min, max)`` de la columna. Si se provee, la
-        cuadricula es fija y el mecanismo es DP pura estricta (la garantia no
-        depende de ningun dato previo). Si es ``None``, el soporte se deriva de
-        los cuantiles empiricos 0.001/0.999 de los datos (con margen): util en la
-        practica, pero el rango en si revela informacion de la muestra — se emite
-        un warning y se recomienda pasar ``bounds`` publicos cuando existan.
+        **Public** support ``(min, max)`` of the column. If provided, the grid
+        is fixed and the mechanism is strictly pure DP (the guarantee does not
+        depend on any prior data). If ``None``, the support is derived from the
+        empirical 0.001/0.999 quantiles of the data (with margin): practical,
+        but the range itself reveals sample information — a warning is emitted
+        and passing public ``bounds`` is recommended when available.
     """
 
     def __init__(self, epsilon: float = 1.0, bins: int = 200,
                  q_low: float = 0.001, q_high: float = 0.999,
                  bounds: tuple[float, float] | None = None):
         if epsilon <= 0:
-            raise ValueError(f"epsilon del DP-ECDF debe ser > 0, se recibio {epsilon!r}")
+            raise ValueError(f"DP-ECDF epsilon must be > 0, got {epsilon!r}")
         self.epsilon = float(epsilon)
         self.bins = max(2, int(bins))
         self.q_low = float(q_low)
         self.q_high = float(q_high)
         if bounds is not None and not (
                 bounds[0] < bounds[1] and np.isfinite(bounds[0]) and np.isfinite(bounds[1])):
-            raise ValueError(f"bounds invalidos: {bounds!r} (requiere min < max finitos)")
+            raise ValueError(f"Invalid bounds: {bounds!r} (requires finite min < max)")
         self.bounds = tuple(map(float, bounds)) if bounds is not None else None
         self.n = 0
         self._edges: np.ndarray | None = None
-        self._cdf: np.ndarray | None = None  # len(bins)+1, monotono, termina en 1
+        self._cdf: np.ndarray | None = None  # len(bins)+1, monotone, ends at 1
 
     # ------------------------------------------------------------------
     def fit(self, values: np.ndarray, rng: np.random.Generator | None = None) -> "DPEcdf":
-        """Construye la ECDF privada a partir de ``values`` (unifila por fila).
+        """Build the private ECDF from ``values`` (one entry per row).
         """
         v = np.asarray(values, dtype=float).ravel()
         if v.size < 2:
-            raise ValueError(f"DPEcdf necesita al menos 2 valores, se recibieron {v.size}")
+            raise ValueError(f"DPEcdf needs at least 2 values, got {v.size}")
         self.n = int(v.size)
         rng = rng or np.random.default_rng(0)
 
@@ -86,15 +86,15 @@ class DPEcdf:
         else:
             lo = float(np.quantile(v, min(self.q_low, self.q_high)))
             hi = float(np.quantile(v, max(self.q_low, self.q_high)))
-            pad = 1e-6 + 0.05 * (hi - lo)  # redondea soporte, no publica los extremos
+            pad = 1e-6 + 0.05 * (hi - lo)  # rounds support, does not publish extremes
             lo, hi = lo - pad, hi + pad
             if hi <= lo:
                 hi = lo + 1.0
             warnings.warn(
-                "DPEcdf usa un soporte derivado de los datos (cuantiles 0.001/0.999 "
-                "+ margen). La garantia DP del histograma es estricta dado ese soporte, "
-                "pero el rango en si revela informacion muestral; pasa 'bounds=(min,max)' "
-                "publicos cuando existan para una garantia formal completa.",
+                "DPEcdf uses a data-derived support (0.001/0.999 quantiles + margin). "
+                "The histogram DP guarantee is strict given that support, but the range "
+                "itself reveals sample information; pass public 'bounds=(min,max)' when "
+                "available for a fully formal guarantee.",
                 stacklevel=2,
             )
 
@@ -108,22 +108,22 @@ class DPEcdf:
             total = float(self.bins)
         pdf = w / total
         self._edges = np.linspace(lo, hi, self.bins + 1)
-        # suavizado monotono: cdf = cumsum de la pdf (ya ordenada no negativa)
+        # monotone smoothing: cdf = cumsum of the pdf (already ordered, non-negative)
         cdf = np.concatenate([[0.0], np.cumsum(pdf)])
         cdf = cdf / cdf[-1]
-        # evita mesetas exactas: normaliza y clampa
+        # avoid exact plateaus: normalize and clamp
         self._cdf = np.clip(cdf, 0.0, 1.0)
         self._cdf[-1] = 1.0
         return self
 
     # ------------------------------------------------------------------
     def quantile(self, u: np.ndarray) -> np.ndarray:
-        """Inversa de la ECDF privada sobre los cuantiles uniformes ``u`` (0..1).
+        """Inverse of the private ECDF over the uniform quantiles ``u`` (0..1).
 
-        Interpola linealmente entre bordes de la cuadricula (post-proceso DP).
+        Linearly interpolates between grid edges (DP post-processing).
         """
         if self._edges is None or self._cdf is None:
-            raise RuntimeError("DPEcdf sin entrenar: llama a fit(values) primero.")
+            raise RuntimeError("DPEcdf not fitted: call fit(values) first.")
         u_arr = np.asarray(u, dtype=np.float64)
         flat = u_arr.ravel()
         q = np.clip(flat, 1e-12, 1.0 - 1e-12)
@@ -137,7 +137,7 @@ class DPEcdf:
 
     # ------------------------------------------------------------------
     def report(self) -> dict:
-        """Resumen del estado de privacidad de la columna (para el informe)."""
+        """Privacy state summary of the column (for the report)."""
         return {
             "mechanism": "dp-ecdf",
             "dp": True,

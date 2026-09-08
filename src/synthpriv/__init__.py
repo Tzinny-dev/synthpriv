@@ -1,4 +1,4 @@
-"""synthpriv: generacion de datos sinteticos preservando privacidad."""
+"""synthpriv: synthetic data generation preserving privacy."""
 
 from synthpriv.core.registry import (
     GeneratorNotFoundError,

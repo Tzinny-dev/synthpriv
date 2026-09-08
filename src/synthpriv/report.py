@@ -1,4 +1,4 @@
-"""Generacion de informes HTML autocontenidos."""
+"""Self-contained HTML report generation."""
 
 from __future__ import annotations
 
@@ -11,11 +11,11 @@ from jinja2 import Template
 from synthpriv.metrics.base import MetricResult
 
 _TEMPLATE = """<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>synthpriv - Informe de evaluacion</title>
+<title>synthpriv - Evaluation report</title>
 <style>
   :root { --ok:#1a7f37; --warn:#9a6700; --bad:#cf222e; --muted:#59636e; --line:#d0d7de; }
   * { box-sizing: border-box; }
@@ -49,39 +49,39 @@ _TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>synthpriv &mdash; Informe de datos sinteticos</h1>
-  <p>Generador: <strong>{{ data.generator.key }}</strong> &middot;
+  <h1>synthpriv &mdash; Synthetic data report</h1>
+  <p>Generator: <strong>{{ data.generator.key }}</strong> &middot;
      {{ data.generator.description }}</p>
-  <p>Filas reales: {{ data.rows.real }} &middot; Filas sinteticas: {{ data.rows.synthetic }}</p>
+  <p>Real rows: {{ data.rows.real }} &middot; Synthetic rows: {{ data.rows.synthetic }}</p>
 </header>
 <main>
 
   <div class="card">
-    <h2>Resumen</h2>
+    <h2>Summary</h2>
     <div class="grid">
-      <div class="stat"><div class="label">Utilidad&nbsp;OK</div><div class="value">{{ data.summary.passed }}</div></div>
-      <div class="stat"><div class="label">Utilidad&nbsp;fallo</div><div class="value">{{ data.summary.failed }}</div></div>
-      <div class="stat"><div class="label">Privacidad&nbsp;(n/a)</div><div class="value">{{ data.summary.reported }}</div></div>
-      <div class="stat"><div class="label">Tiempo fit</div><div class="value">{{ "%.1fs"|format(data.timings.get('fit_seconds', 0.0)) }}</div></div>
+      <div class="stat"><div class="label">Utility&nbsp;OK</div><div class="value">{{ data.summary.passed }}</div></div>
+      <div class="stat"><div class="label">Utility&nbsp;failed</div><div class="value">{{ data.summary.failed }}</div></div>
+      <div class="stat"><div class="label">Privacy&nbsp;(n/a)</div><div class="value">{{ data.summary.reported }}</div></div>
+      <div class="stat"><div class="label">Fit time</div><div class="value">{{ "%.1fs"|format(data.timings.get('fit_seconds', 0.0)) }}</div></div>
     </div>
   </div>
 
   {% set mech = data.privacy_mechanism.configured %}
     {% set acc = data.privacy_mechanism.accountant %}
   <div class="card">
-    <h2>Mecanismo de privacidad</h2>
+    <h2>Privacy mechanism</h2>
     {% if mech.dp %}
       {% if acc.effective_epsilon is not none %}
-        <p><span class="pill passed">DP activo</span> Epsilon acumulado real: <strong>{{ acc.effective_epsilon }}</strong> (presupuesto {{ mech.epsilon }}; ruido = {{ acc.noise_multiplier }})</p>
+        <p><span class="pill passed">DP active</span> Real accumulated epsilon: <strong>{{ acc.effective_epsilon }}</strong> (budget {{ mech.epsilon }}; noise = {{ acc.noise_multiplier }})</p>
         {% if acc.ecdf_epsilon is not none %}
-          <p><span class="pill passed">DP-ECDF activo</span> Epsilon total (entrenamiento + marginales): <strong>{{ "%.4f"|format(acc.total_epsilon) }}</strong>
+          <p><span class="pill passed">DP-ECDF active</span> Total epsilon (training + marginals): <strong>{{ "%.4f"|format(acc.total_epsilon) }}</strong>
           = {{ "%.4f"|format(acc.effective_epsilon) }} (DP-SGD) + {{ acc.ecdf_epsilon }} (DP-ECDF)</p>
         {% endif %}
       {% else %}
-        <p><span class="pill reported">DP declarado, no medido</span> Presupuesto epsilon: {{ mech.epsilon }} (delta {{ mech.delta }}). El epsilon acumulado real solo se obtiene entrenando con synthpriv.</p>
+        <p><span class="pill reported">DP declared, not measured</span> Epsilon budget: {{ mech.epsilon }} (delta {{ mech.delta }}). The real accumulated epsilon is only obtained by training with synthpriv.</p>
       {% endif %}
     {% else %}
-      <p><span class="pill reported">Sin garantia formal de DP</span> {{ mech.notes }}</p>
+      <p><span class="pill reported">No formal DP guarantee</span> {{ mech.notes }}</p>
     {% endif %}
     {% set assurance = data.privacy_mechanism.assurance %}
     {% if assurance %}
@@ -90,9 +90,9 @@ _TEMPLATE = """<!DOCTYPE html>
   </div>
 
   <div class="card">
-    <h2>Utilidad</h2>
+    <h2>Utility</h2>
     <table>
-      <tr><th>Metrica</th><th>Valor</th><th>Umbral</th><th>Estado</th></tr>
+      <tr><th>Metric</th><th>Value</th><th>Threshold</th><th>Status</th></tr>
       {% for name, m in data.utility.items() %}
       <tr>
         <td><strong>{{ name }}</strong><br><span class="muted">{{ m.description }}</span></td>
@@ -108,9 +108,9 @@ _TEMPLATE = """<!DOCTYPE html>
   </div>
 
   <div class="card">
-    <h2>Privacidad (riesgo de re-identificacion)</h2>
+    <h2>Privacy (re-identification risk)</h2>
     <table>
-      <tr><th>Metrica</th><th>Valor</th><th>Umbral</th><th>Estado</th></tr>
+      <tr><th>Metric</th><th>Value</th><th>Threshold</th><th>Status</th></tr>
       {% for name, m in data.privacy_metrics.items() %}
       <tr>
         <td><strong>{{ name }}</strong><br><span class="muted">{{ m.description }}</span></td>
@@ -125,7 +125,7 @@ _TEMPLATE = """<!DOCTYPE html>
     </table>
   </div>
 
-  <footer>Generado con synthpriv. Recuerda: los datos sinteticos sin DP no son anonimizacion garantizada.</footer>
+  <footer>Generated with synthpriv. Remember: synthetic data without DP is not guaranteed anonymization.</footer>
 </main>
 </body>
 </html>
@@ -133,11 +133,11 @@ _TEMPLATE = """<!DOCTYPE html>
 
 
 def details_cells(details: dict[str, Any]) -> str:
-    """Serializa detalles de metricas en una linea legible."""
+    """Serialize metric details into a readable line."""
     items = []
     for k, v in details.items():
         if isinstance(v, (list, dict)) and v:
-            continue  # tablas detalladas se omiten en el resumen
+            continue  # detailed tables are omitted in the summary
         items.append(f"{k}={v}")
     return html.escape(" | ".join(items))
 
@@ -150,7 +150,7 @@ def render_html(
     data: dict[str, Any],
     path: str | Path,
 ) -> Path:
-    """Renderiza ``data`` (salida de ``EvaluationReport.data``) a HTML."""
+    """Render ``data`` (output of ``EvaluationReport.data``) to HTML."""
     doc = _TMPL.render(data=data)
     path = Path(path)
     path.write_text(doc, encoding="utf-8")
@@ -158,14 +158,14 @@ def render_html(
 
 
 # ---------------------------------------------------------------------------
-# Informe del barrido epsilon-utilidad
+# Epsilon-utility sweep report
 # ---------------------------------------------------------------------------
 
 _SWEEP_TEMPLATE = """<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>synthpriv - Barrido epsilon/utilidad</title>
+<title>synthpriv - Epsilon/utility sweep</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin:0; color:#1f2328; background:#f6f8fa; }
@@ -185,12 +185,12 @@ _SWEEP_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>Barrido epsilon vs utilidad</h1>
-  <p>Generador: dp-gan &middot; Puntos: {{ rows|length }} &middot; Delta: {{ delta }}</p>
+  <h1>Epsilon vs utility sweep</h1>
+  <p>Generator: dp-gan &middot; Points: {{ rows|length }} &middot; Delta: {{ delta }}</p>
 </header>
 <main>
   <div class="card">
-    <h2>Tabla</h2>
+    <h2>Table</h2>
     <table>
       <tr>
         {% for col in columns %}<th>{{ col }}</th>{% endfor %}
@@ -211,7 +211,7 @@ _SWEEP_TEMPLATE = """<!DOCTYPE html>
   </div>
   {% endfor %}
 </main>
-<footer>Generado con synthpriv. Eje X: epsilon acumulado real (accountant RDP).</footer>
+<footer>Generated with synthpriv. X axis: real accumulated epsilon (RDP accountant).</footer>
 </body>
 </html>
 """
@@ -222,7 +222,7 @@ _SWEEP_TMPL = Template(_SWEEP_TEMPLATE)
 def _svg_line_chart(xs: list[float], ys: list[float], label_x: str, label_y: str,
                     refs: list[tuple[str, float]] | None = None,
                     width: int = 640, height: int = 240) -> str:
-    """Curva SVG 0-100% con polyline, puntos y lineas de referencia (refs)."""
+    """0-100% SVG curve with polyline, points and reference lines (refs)."""
     if not xs:
         return ""
     refs = refs or []
@@ -258,7 +258,7 @@ def _svg_line_chart(xs: list[float], ys: list[float], label_x: str, label_y: str
     )
     return (
         f'<svg viewBox="0 0 {width} {height}" role="img" '
-        f'aria-label="curva {label_y} vs {label_x}">'
+        f'aria-label="{label_y} vs {label_x} curve">'
         f'<line x1="{pad_x}" y1="{height - pad_y}" x2="{width - pad_x}" y2="{height - pad_y}" '
         f'stroke="#d0d7de"/>'
         f'<text x="{width / 2}" y="{height - 6}" font-size="12" fill="#59636e" text-anchor="middle">'
@@ -271,10 +271,10 @@ def _svg_line_chart(xs: list[float], ys: list[float], label_x: str, label_y: str
 
 
 def render_sweep_html(result, path: str | Path) -> Path:
-    """Renderiza un ``SweepResult`` a HTML autocontenido con las curvas."""
+    """Render a ``SweepResult`` to a self-contained HTML with the curves."""
     from synthpriv.sweep import SweepResult
 
-    assert isinstance(result, SweepResult), "se esperaba un SweepResult"
+    assert isinstance(result, SweepResult), "expected a SweepResult"
     df = result.dataframe()
     rows = df.to_dict("records")
     columns = list(df.columns)
@@ -287,11 +287,11 @@ def render_sweep_html(result, path: str | Path) -> Path:
         if len(sub) < 2:
             continue
         charts.append({
-            "title": metric.replace("util_", "Utilidad: ").replace("priv_", "Privacidad: "),
-            "description": "Valor de la metrica frente al epsilon acumulado real (menor epsilon = mas privado).",
+            "title": metric.replace("util_", "Utility: ").replace("priv_", "Privacy: "),
+            "description": "Metric value vs the real accumulated epsilon (lower epsilon = more private).",
             "svg_html": _svg_line_chart(
                 list(sub["measured_epsilon"]), list(sub[metric]),
-                "epsilon acumulado real", metric,
+                "real accumulated epsilon", metric,
             ),
         })
 
@@ -303,14 +303,14 @@ def render_sweep_html(result, path: str | Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# Informe del benchmark dp-gan vs baselines (sin DP)
+# dp-gan vs baselines (non-DP) benchmark report
 # ---------------------------------------------------------------------------
 
 _BENCHMARK_TEMPLATE = """<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>synthpriv - Benchmark dp-gan vs baselines</title>
+<title>synthpriv - dp-gan vs baselines benchmark</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin:0; color:#1f2328; background:#f6f8fa; }
@@ -331,13 +331,13 @@ _BENCHMARK_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>Benchmark dp-gan (DP) vs baselines SDV</h1>
-  <p>Baselines sin DP: {{ baselines|join(", ") }} &middot; Delta: {{ delta }}</p>
+  <h1>dp-gan (DP) vs SDV baselines benchmark</h1>
+  <p>Non-DP baselines: {{ baselines|join(", ") }} &middot; Delta: {{ delta }}</p>
 </header>
 <main>
   <div class="card">
-    <h2>Tabla (por punto de epsilon / baseline)</h2>
-    <p class="muted">Las lineas discontinuas del mismo color en las curvas son los valores de cada baseline.</p>
+    <h2>Table (per epsilon point / baseline)</h2>
+    <p class="muted">The same-color dashed lines in the curves are the values of each baseline.</p>
     <table>
       <tr>{% for col in columns %}<th>{{ col }}</th>{% endfor %}</tr>
       {% for row in rows %}
@@ -354,7 +354,7 @@ _BENCHMARK_TEMPLATE = """<!DOCTYPE html>
   </div>
   {% endfor %}
 </main>
-<footer>Generado con synthpriv. Eje X: epsilon acumulado real (accountant RDP). Menor epsilon = mas privado.</footer>
+<footer>Generated with synthpriv. X axis: real accumulated epsilon (RDP accountant). Lower epsilon = more private.</footer>
 </body>
 </html>
 """
@@ -363,10 +363,10 @@ _BENCHMARK_TMPL = Template(_BENCHMARK_TEMPLATE)
 
 
 def render_benchmark_html(result, path: str | Path) -> Path:
-    """Renderiza un ``BenchmarkResult`` a HTML con curvas dp-gan y refs de baselines."""
+    """Render a ``BenchmarkResult`` to HTML with dp-gan curves and baseline refs."""
     from synthpriv.benchmark import BenchmarkResult
 
-    assert isinstance(result, BenchmarkResult), "se esperaba un BenchmarkResult"
+    assert isinstance(result, BenchmarkResult), "expected a BenchmarkResult"
     df = result.dataframe()
     rows = df.to_dict("records")
     columns = list(df.columns)
@@ -385,15 +385,15 @@ def render_benchmark_html(result, path: str | Path) -> Path:
             for b in result.baselines
             if result.baseline_value(b, metric) is not None
         ]
-        title = metric.replace("util_", "Utilidad: ").replace("priv_", "Privacidad: ")
+        title = metric.replace("util_", "Utility: ").replace("priv_", "Privacy: ")
         charts.append({
             "title": title,
-            "description": "dp-gan (verde) frente al valor de cada baseline sin DP (discontinuo). "
-                           "Si a epsilon alto el dp-gan no alcanza el baseline, la arquitectura limita; "
-                           "la distancia a epsilon bajo es el coste de la privacidad.",
+            "description": "dp-gan (green) vs each non-DP baseline value (dashed). "
+                           "If at high epsilon dp-gan does not reach the baseline, the architecture limits; "
+                           "the distance at low epsilon is the cost of privacy.",
             "svg_html": _svg_line_chart(
                 [p["x"] for p in curve], [p["y"] for p in curve],
-                "epsilon acumulado real", metric, refs=refs,
+                "real accumulated epsilon", metric, refs=refs,
             ),
         })
 

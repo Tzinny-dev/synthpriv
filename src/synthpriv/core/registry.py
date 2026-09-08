@@ -1,8 +1,8 @@
-"""Registro de generadores.
+"""Generator registry.
 
-Los generadores se dan de alta con el decorador ``@register_generator`` y se
-instancian por nombre (clave). Esto permite al pipeline, la CLI o una API REST
-resolver generadores sin importar directamente cada clase.
+Generators are registered with the ``@register_generator`` decorator and
+instantiated by name (key). This lets the pipeline, the CLI or a REST API
+resolve generators without importing each class directly.
 """
 
 from __future__ import annotations
@@ -17,12 +17,12 @@ SynthesizerT = TypeVar("SynthesizerT", bound="BaseSynthesizer")
 
 
 class GeneratorNotFoundError(KeyError):
-    """Se pidio un generador que no esta registrado."""
+    """A generator that is not registered was requested."""
 
 
 @dataclass
 class GeneratorSpec:
-    """Entrada del registro."""
+    """Registry entry."""
 
     key: str
     cls: type
@@ -34,11 +34,11 @@ _REGISTRY: dict[str, GeneratorSpec] = {}
 
 
 def register_generator(key: str, description: str = "", supports: tuple[str, ...] = ("tabular",)):
-    """Decorador para registrar una clase como generador bajo ``key``."""
+    """Decorator to register a class as a generator under ``key``."""
 
     def decorate(cls: type) -> type:
         if key in _REGISTRY:
-            raise ValueError(f"El generador {key!r} ya esta registrado")
+            raise ValueError(f"Generator {key!r} is already registered")
         doc = description or getattr(cls, "description", "") or cls.__doc__ or ""
         _REGISTRY[key] = GeneratorSpec(key=key, cls=cls, description=doc.strip(), supports=supports)
         return cls
@@ -47,21 +47,21 @@ def register_generator(key: str, description: str = "", supports: tuple[str, ...
 
 
 def list_generators() -> list[str]:
-    """Claves de todos los generadores registrados."""
+    """Keys of all registered generators."""
     return sorted(_REGISTRY)
 
 
 def get_generator(key: str) -> GeneratorSpec:
-    """Devuelve la especificacion de un generador registrado."""
+    """Return the specification of a registered generator."""
     try:
         return _REGISTRY[key]
     except KeyError as exc:
         raise GeneratorNotFoundError(
-            f"Generador {key!r} no registrado. Disponibles: {list_generators()}"
+            f"Generator {key!r} not registered. Available: {list_generators()}"
         ) from exc
 
 
 def build_generator(key: str, *args, **kwargs) -> "BaseSynthesizer":
-    """Instancia un generador a partir de su clave registrada."""
+    """Instantiate a generator from its registered key."""
     spec = get_generator(key)
     return spec.cls(*args, **kwargs)

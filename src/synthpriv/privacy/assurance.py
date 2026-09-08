@@ -1,20 +1,21 @@
-"""Aseguramento formal de la privacidad declarada.
+"""Formal assurance of the declared privacy.
 
-``assert_dp`` no inventa garantias: verifica los dos hechos operativos que hacen
-valida la cota RDP de Opacus y comprueba que la reivindicacion de privacidad no
-excede lo contabilizado.
+``assert_dp`` does not invent guarantees: it verifies the two operational facts
+that make Opacus's RDP bound valid and checks that the privacy claim does not
+exceed what was accounted.
 
-1. **Integridad de pasos**: cada ``step()`` del optimizador del discriminador
-   consume presupuesto DP. Si se ejecutaron mas pasos que los que el accountant
-   RDP contabilizo, la garantia queda viciada y ``assert_dp`` falla. (Los pasos
-   del generador son solo post-proceso del discriminador DP: no filtran.)
-2. **No exceder el presupuesto**: el epsilon medido por el accountant debe quedar
-   dentro de ``declared_epsilon * (1 + tolerance)``. La ventana operativa es
-   ``[epsilon_medido, presupuesto_declarado]``: cualquier reivindicacion superior
-   a lo medido seria tecnicamente defensible, igual o inferior seria inflada.
+1. **Step integrity**: each ``step()`` of the discriminator optimizer consumes DP
+   budget. If more steps ran than the RDP accountant accounted, the guarantee is
+   void and ``assert_dp`` fails. (Generator steps are only post-processing of the
+   DP discriminator: they do not leak.)
+2. **Budget not exceeded**: the epsilon measured by the accountant must stay
+   within ``declared_epsilon * (1 + tolerance)``. The operational window is
+   ``[measured_epsilon, declared_budget]``: any claim above what was measured
+   would be technically defensible, equal or below would be inflated.
 
-Si el mecanismo es ``NoPrivacy`` o el generador no aporta epsilon medido, el
-resultado es ``fail`` con mensaje explicito: no hay garantia formal que validar.
+If the mechanism is ``NoPrivacy`` or the generator provides no measured epsilon,
+the result is ``fail`` with an explicit message: there is no formal guarantee to
+validate.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ STATUS_FAIL = "fail"
 
 @dataclass
 class DpAssurance:
-    """Resultado de ``assert_dp``: estado de cada comprobacion y ventana de epsilon."""
+    """Result of ``assert_dp``: state of each check and the epsilon window."""
 
     status: str = STATUS_FAIL
     declared_epsilon: float | None = None
@@ -68,11 +69,11 @@ class DpAssurance:
 
     @property
     def window(self) -> tuple[float | None, float | None]:
-        """Ventana operativa `(epsilon_medido, presupuesto_declarado)`."""
+        """Operational window `(measured_epsilon, declared_budget)`."""
         return (self.measured_epsilon, self.declared_epsilon)
 
     def raise_if_not_passed(self) -> "DpAssurance":
-        """Lanza ``AssertionError`` si la garantia no se valida (test/reporting)."""
+        """Raise ``AssertionError`` if the guarantee is not validated (test/reporting)."""
         if not self.ok():
             raise AssertionError(self.message)
         return self
@@ -90,17 +91,17 @@ def assert_dp(
     tolerance: float = 0.05,
     delta: float | None = None,
 ) -> DpAssurance:
-    """Valida la garantia DP declarada de un generador entrenado.
+    """Validate the declared DP guarantee of a trained generator.
 
     Parameters
     ----------
     generator:
-        Generador entrenado (``dp-gan``). Debe exponer ``accounted_epsilon`` y
-        los contadores de pasos ``_disc_steps_accounted``/``_disc_steps_actual``.
+        Trained generator (``dp-gan``). Must expose ``accounted_epsilon`` and the
+        step counters ``_disc_steps_accounted``/``_disc_steps_actual``.
     declared_epsilon:
-        Presupuesto que se reclama (por defecto el del mecanismo del generador).
+        Claimed budget (defaults to the generator mechanism's).
     tolerance:
-        Margen relativo permitido sobre el presupuesto declarado.
+        Relative margin allowed over the declared budget.
     """
     assurance = DpAssurance()
 
@@ -115,71 +116,71 @@ def assert_dp(
     assurance.noise_multiplier = getattr(mechanism, "used_noise_multiplier", None)
     assurance.max_grad_norm = getattr(mechanism, "max_grad_norm", None)
 
-    # -- 1. garantia formal disponible -----------------------------------
+    # -- 1. formal guarantee available ------------------------------------
     if not is_dp or measured is None:
         assurance.message = (
-            "Sin garantia formal de privacidad: el mecanismo no es DP o el epsilon "
-            "acumulado no se midio al entrenar. La privacidad queda solo mitigada "
-            "empiricamente (metricas de riesgo del informe)."
+            "No formal privacy guarantee: the mechanism is not DP or the accumulated "
+            "epsilon was not measured during training. Privacy is only mitigated "
+            "empirically (risk metrics of the report)."
         )
-        _add_check(assurance, "mecanismo_dp", False,
-                   "mecanismo no DP o epsilon sin medir")
+        _add_check(assurance, "dp_mechanism", False,
+                   "mechanism not DP or epsilon unmeasured")
         return assurance
 
-    # -- 2. integridad de pasos (solo mecanismos secuenciales tipo DP-SGD) --
+    # -- 2. step integrity (only sequential mechanisms like DP-SGD) --------
     accounted = getattr(generator, "_disc_steps_accounted", None)
     actual = getattr(generator, "_disc_steps_actual", None)
     steps_applicable = getattr(generator, "name", "") == "dp-gan" or (
         accounted is not None and actual is not None)
     if not steps_applicable:
-        # dp-copula y similares: garantia por composicion de mecanismos puros
+        # dp-copula and similar: guarantee by composition of pure mechanisms
         assurance.steps_match = True
-        _add_check(assurance, "pasos_dp", True,
-                   "mecanismo DP composicional sin pasos secuenciales (no aplica "
-                   "veredicto de pasos Opacus)")
+        _add_check(assurance, "dp_steps", True,
+                   "compositional DP mechanism without sequential steps (Opacus step "
+                   "verdict does not apply)")
     elif accounted is None or actual is None:
         assurance.steps_match = False
-        _add_check(assurance, "pasos_dp", False,
-                   "sin contadores de pasos (¿se entreno con esta version?)")
-        assurance.message = "No se pudo verificar la integridad de pasos DP."
+        _add_check(assurance, "dp_steps", False,
+                   "no step counters (was it trained with this version?)")
+        assurance.message = "Could not verify DP step integrity."
         return assurance
     else:
         assurance.accounted_steps = accounted
         assurance.actual_private_steps = actual
         assurance.steps_match = actual == accounted
         if actual > accounted:
-            _add_check(assurance, "pasos_dp", False,
-                       f"{actual} pasos ejecutados > {accounted} contabilizados: "
-                       "hay pasos no registrados que filtran datos.")
+            _add_check(assurance, "dp_steps", False,
+                       f"{actual} steps executed > {accounted} accounted: "
+                       "there are unregistered steps that leak data.")
             assurance.message = (
-                f"ALERTA: {actual} pasos del discriminador ejecutados frente a "
-                f"{accounted} contabilizados. La garantia RDP queda viciada."
+                f"ALERT: {actual} discriminator steps executed vs "
+                f"{accounted} accounted. The RDP guarantee is void."
             )
             return assurance
         if actual < accounted:
-            _add_check(assurance, "pasos_dp", False,
-                       f"{actual} pasos ejecutados < {accounted} contabilizados: "
-                       "se declara mas privacidad de la realmente consumida.")
+            _add_check(assurance, "dp_steps", False,
+                       f"{actual} steps executed < {accounted} accounted: "
+                       "more privacy is declared than actually consumed.")
             assurance.message = (
-                f"Los pasos ejecutados ({actual}) difieren de los contabilizados "
-                f"({accounted}); la cota no es exacta."
+                f"The executed steps ({actual}) differ from the accounted ones "
+                f"({accounted}); the bound is not exact."
             )
             return assurance
-        _add_check(assurance, "pasos_dp", True, f"{accounted} pasos todos contabilizados")
+        _add_check(assurance, "dp_steps", True, f"{accounted} steps all accounted")
 
-    # -- 3. presupuesto respetado -------------------------------------------
+    # -- 3. budget respected ----------------------------------------------
     if declared is None:
-        assurance.budget_respected = True  # sin presupuesto declarado no hay exceso
-        _add_check(assurance, "presupuesto", True, "sin presupuesto declarado")
+        assurance.budget_respected = True  # no declared budget, no excess
+        _add_check(assurance, "budget", True, "no declared budget")
     else:
         allowance = declared * (1.0 + tolerance)
         assurance.budget_respected = measured <= allowance
         _add_check(
             assurance,
-            "presupuesto",
+            "budget",
             assurance.budget_respected,
-            f"epsilon medido {measured:.4f} <= {allowance:.4f} "
-            f"(declarado {declared} + {tolerance:.0%})",
+            f"measured epsilon {measured:.4f} <= {allowance:.4f} "
+            f"(declared {declared} + {tolerance:.0%})",
         )
 
     if assurance.steps_match and assurance.budget_respected:
@@ -188,21 +189,21 @@ def assert_dp(
         note = ""
         ecdf = getattr(generator, "ecdf_epsilon", None)
         if ecdf is not None:
-            note = (f" (valida el DP-SGD del entrenamiento; total del sintetizador = "
-                    f"{measured:.3f} + {ecdf} = {measured + float(ecdf):.3f} con DP-ECDF, "
-                    f"ver informe)")
+            note = (f" (validates the training DP-SGD; synthesizer total = "
+                    f"{measured:.3f} + {ecdf} = {measured + float(ecdf):.3f} with DP-ECDF, "
+                    f"see report)")
         if steps_applicable:
-            _pasos = f"{accounted} pasos contabilizados y ejecutados, ruido {_noise:.3f}"
+            _pasos = f"{accounted} accounted and executed steps, noise {_noise:.3f}"
         else:
-            _pasos = "garantia por composicion de mecanismos puros (ver componente epsilons en informe)"
+            _pasos = "guarantee by composition of pure mechanisms (see component epsilons in report)"
         assurance.message = (
-            f"Garantia DP validada: epsilon RDP {measured:.3f} "
-            f"(ventana [{measured:.3f}, {declared}]), {_pasos}.{note}"
+            f"DP guarantee validated: RDP epsilon {measured:.3f} "
+            f"(window [{measured:.3f}, {declared}]), {_pasos}.{note}"
         )
     else:
         assurance.message = (
-            f"Reinvindicacion de privacidad no validada: pasos "
-            f"{'OK' if assurance.steps_match else 'NO'}, presupuesto "
+            f"Privacy claim not validated: steps "
+            f"{'OK' if assurance.steps_match else 'NO'}, budget "
             f"{'OK' if assurance.budget_respected else 'NO'}."
         )
     return assurance

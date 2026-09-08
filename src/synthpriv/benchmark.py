@@ -1,15 +1,15 @@
-"""Benchmark de utilidad dp-gan (DP) frente a generadores SDV sin DP.
+"""Utility benchmark of dp-gan (DP) vs non-DP SDV generators.
 
-Entrena ``dp-gan`` con varios presupuestos (medidos con el accountant RDP) y a la
-vez entrena generadores de referencia sin privacidad (``ctgan``, ``tvae``,
-``copula-gan``, ``gaussian-copula``) sobre el mismo dataset y con la misma
-evaluacion. Resultado: una tabla con la utilidad de cada punto y un informe HTML
-con la curva privacidad/utilidad del dp-gan frente a las lineas de referencia de
-cada baseline.
+Trains ``dp-gan`` with several budgets (measured with the RDP accountant) and
+also trains reference generators without privacy (``ctgan``, ``tvae``,
+``copula-gan``, ``gaussian-copula``) on the same dataset with the same
+evaluation. Result: a table with the utility of each point and an HTML report
+with the dp-gan privacy/utility curve against the reference lines of each
+baseline.
 
-Interpretacion: si el dp-gan con epsilon ~ sin-DP (50) se acerca al baseline
-mejor, la arquitectura es la limitacion; la distancia a epsilon bajo es el coste
-de la privacidad.
+Interpretation: if dp-gan at epsilon ~ no-DP (50) gets close to the best
+baseline, the architecture is the limitation; the distance at low epsilon is the
+cost of privacy.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ logger = get_logger("benchmark")
 _DEFAULT_EPSILONS = (1.0, 2.0, 5.0, 10.0, 50.0)
 _DEFAULT_BASELINES = ("gaussian-copula", "ctgan", "tvae", "copula-gan")
 
-# Direccion util para interpretar el gap de utilidad.
+# Direction useful to interpret the utility gap.
 _DIRECTION: dict[str, str] = {
     "ks_test": "higher",
     "correlation_mae": "lower",
@@ -51,11 +51,11 @@ def _metric_direction(name: str, default: str = "higher") -> str:
 
 @dataclass
 class BenchmarkResult:
-    """Resultado de ``run_benchmark``.
+    """Result of ``run_benchmark``.
 
-    Cada ``row`` es un dict con: ``model`` (nombre del generador o "dp-gan"),
-    ``kind`` ("dp-gan" | "baseline"), ``target_epsilon`` y ``measured_epsilon``
-    (solo dp-gan), ``util_<metrica>``, ``priv_<metrica>`` y ``fit_seconds``.
+    Each ``row`` is a dict with: ``model`` (generator name or "dp-gan"),
+    ``kind`` ("dp-gan" | "baseline"), ``target_epsilon`` and ``measured_epsilon``
+    (dp-gan only), ``util_<metric>``, ``priv_<metric>`` and ``fit_seconds``.
     """
 
     rows: list[dict[str, Any]] = field(default_factory=list)
@@ -64,7 +64,7 @@ class BenchmarkResult:
     privacy_metrics: list[str] = field(default_factory=list)
 
     def dataframe(self) -> pd.DataFrame:
-        """Filas ordenadas: dp-gan por epsilon medido y luego los baselines."""
+        """Rows ordered: dp-gan by measured epsilon, then the baselines."""
         df = pd.DataFrame(self.rows)
         if "measured_epsilon" in df.columns:
             df = df.sort_values("measured_epsilon", na_position="last")
@@ -75,11 +75,11 @@ class BenchmarkResult:
         return Path(path)
 
     def save_report(self, path: str | Path) -> Path:
-        """Informe HTML con la tabla y las curvas dp-gan vs baselines."""
+        """HTML report with the table and the dp-gan vs baselines curves."""
         return render_benchmark_html(self, Path(path))
 
     def curve(self, generator: str, metric: str) -> list[dict[str, float]]:
-        """Serie (measured_epsilon, metric) del dp-gan, ascendente."""
+        """(measured_epsilon, metric) series of the DP generator, ascending."""
         out = [
             {"x": r["measured_epsilon"], "y": r[metric]}
             for r in self.rows
@@ -90,7 +90,7 @@ class BenchmarkResult:
         return sorted(out, key=lambda p: p["x"])
 
     def baseline_value(self, baseline: str, metric: str) -> float | None:
-        """Valor medio del baseline para una metrica (1 sola ejecucion o repetida)."""
+        """Mean baseline value for a metric (single run or repeated)."""
         vals = [r[metric] for r in self.rows
                 if r.get("model") == baseline and r.get(metric) is not None]
         if not vals:
@@ -98,19 +98,19 @@ class BenchmarkResult:
         return float(sum(vals) / len(vals))
 
     def dp_value(self, metric: str, target_epsilon: float | None = None) -> float | None:
-        """Valor del dp-gan en el punto mas privado (o cercano a ``target_epsilon``)."""
+        """dp-gan value at the most private point (or close to ``target_epsilon``)."""
         pts = self.curve("dp-gan", metric)
         if not pts:
             return None
         if target_epsilon is None:
-            return min(pts, key=lambda p: p["x"])["y"]  # minimo epsilon medido
+            return min(pts, key=lambda p: p["x"])["y"]  # minimum measured epsilon
         return min(pts, key=lambda p: abs(p["x"] - target_epsilon))["y"]
 
     def utility_gap(self, metric: str, baseline: str,
                     target_epsilon: float | None = None) -> float | None:
-        """Coste de la privacidad: cuan lejos queda dp-gan del baseline en una metrica.
+        """Cost of privacy: how far dp-gan is from the baseline on a metric.
 
-        Positivo = dp-gan pierde frente al baseline; negativo = dp-gan gana.
+        Positive = dp-gan loses to the baseline; negative = dp-gan wins.
         """
         base = self.baseline_value(baseline, metric)
         dp = self.dp_value(metric, target_epsilon=target_epsilon)
@@ -122,7 +122,7 @@ class BenchmarkResult:
 
     def best_dp_point(self, metric: str, threshold: float,
                       lower_is_better: bool | None = None) -> dict[str, float] | None:
-        """Punto dp-gan de menor epsilon cuyo valor cumple el umbral de ``metric``."""
+        """Lowest-epsilon dp-gan point whose value meets the ``metric`` threshold."""
         direction = _metric_direction(metric)
         lower = direction == "lower" if lower_is_better is None else lower_is_better
         candidates = [
@@ -146,7 +146,7 @@ def _fit_and_evaluate(
     num_rows: int | None,
     random_state: int,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Entrena un generador y devuelve (row_de_metricas, timings)."""
+    """Train a generator and return (metrics_row, timings)."""
     synth = PrivacyPreservingSynthesizer(
         generator_key=generator_key,
         generator_kwargs=generator_kwargs,
@@ -186,12 +186,12 @@ def run_benchmark(
     num_rows: int | None = None,
     random_state: int = 0,
 ) -> BenchmarkResult:
-    """Benchmarka el dp-gan (a los ``epsilons`` dados) frente a ``baselines`` sin DP.
+    """Benchmark dp-gan (at the given ``epsilons``) against non-DP ``baselines``.
 
-    Los baselines se entrenan una sola vez (no dependen de epsilon) con su
-    configuracion por defecto; para los deep generators p.ej. pasar
-    ``baseline_kwargs={"ctgan": {"epochs": 300}}``. Usa las mismas metricas en
-    todos los puntos.
+    Baselines are trained once (they do not depend on epsilon) with their default
+    configuration; for deep generators e.g. pass
+    ``baseline_kwargs={"ctgan": {"epochs": 300}}``. Uses the same metrics on all
+    points.
     """
     generator_kwargs = generator_kwargs or {}
     baseline_kwargs = baseline_kwargs or {}
@@ -201,7 +201,7 @@ def run_benchmark(
 
     for eps in epsilons:
         privacy = DPSGD(epsilon=float(eps), delta=float(delta))
-        logger.info("[benchmark] dp-gan | epsilon objetivo %.2f ...", eps)
+        logger.info("[benchmark] dp-gan | target epsilon %.2f ...", eps)
         row, _ = _fit_and_evaluate(
             real_data,
             generator_key="dp-gan",
@@ -217,15 +217,15 @@ def run_benchmark(
             "model": "dp-gan", "kind": "dp-gan",
             "target_epsilon": float(eps), "delta": float(delta), **row,
         })
-        logger.info("[benchmark]   medido %.4f | util=%s", row["measured_epsilon"],
+        logger.info("[benchmark]   measured %.4f | util=%s", row["measured_epsilon"],
                     {k: v for k, v in row.items() if k.startswith("util_")})
 
     for name in baselines:
         try:
-            build_generator(name)  # valida que exista antes de entrenar
-        except KeyError as exc:  # pragma: no cover - defensivo
-            raise ValueError(f"Baseline desconocido: {name!r}") from exc
-        logger.info("[benchmark] baseline %s (sin DP) ...", name)
+            build_generator(name)  # validates it exists before training
+        except KeyError as exc:  # pragma: no cover - defensive
+            raise ValueError(f"Unknown baseline: {name!r}") from exc
+        logger.info("[benchmark] baseline %s (no DP) ...", name)
         row, _ = _fit_and_evaluate(
             real_data,
             generator_key=name,

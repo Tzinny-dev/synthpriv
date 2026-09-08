@@ -1,4 +1,4 @@
-"""Mecanismos de privacidad, contabilidad de epsilon/delta y aseguramiento."""
+"""Privacy mechanisms, epsilon/delta accounting and assurance."""
 
 from synthpriv.privacy import mechanisms
 from synthpriv.privacy.assurance import DpAssurance, assert_dp

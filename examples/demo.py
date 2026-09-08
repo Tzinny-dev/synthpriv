@@ -1,21 +1,21 @@
-"""Demo end-to-end de synthpriv: pipeline DP, utilidad/privacidad y persistencia.
+"""End-to-end synthpriv demo: DP pipeline, utility/privacy and persistence.
 
-Recorrido:
-1. Construye un dataset tabular sintetico de partida (mezcla numerico + categorico,
-   con una columna desbalanceada que hace de condicion del dp-gan).
-2. Entrena el ``dp-gan`` con un presupuesto DP (epsilon, delta) y genera filas.
-3. Evalua utilidad y privacidad, y guarda el informe HTML autocontenido.
-4. Persiste el sintetizador, lo recarga y regenera sin reentrenar.
-5. Ejecuta ``assert_dp`` para validar que la garantia DP no se excede.
+Walkthrough:
+1. Builds a starting synthetic tabular dataset (numeric + categorical mix,
+   with an imbalanced column acting as the dp-gan condition).
+2. Trains ``dp-gan`` with a DP budget (epsilon, delta) and generates rows.
+3. Evaluates utility and privacy, and saves the self-contained HTML report.
+4. Persists the synthesizer, reloads it and regenerates without retraining.
+5. Runs ``assert_dp`` to validate that the DP guarantee is not exceeded.
 
-Uso (desde la raiz del repo, con el entorno activo):
+Usage (from the repo root, with the environment active):
     .venv/bin/python examples/demo.py [epsilon] [epochs] [ecdf_epsilon]
 
-Salida: /tmp/synthpriv_demo/ con
-    - synthetic.csv          (filas generadas)
-    - report.html            (informe de utilidad y privacidad)
-    - demo_model.sz          (sintetizador persistido) + demo_model.sz.meta
-    - resample.csv           (regenerado desde el modelo recargado, sin reentrenar)
+Output: /tmp/synthpriv_demo/ with
+    - synthetic.csv          (generated rows)
+    - report.html            (utility and privacy report)
+    - demo_model.sz          (persisted synthesizer) + demo_model.sz.meta
+    - resample.csv           (regenerated from the reloaded model, no retraining)
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ OUT = Path("/tmp/synthpriv_demo")
 
 
 def make_real_data(n: int = 2000, seed: int = 7) -> pd.DataFrame:
-    """Dataset de partida determinista: numericas con modos y categorias."""
+    """Deterministic starting dataset: numerics with modes and categories."""
     rng = np.random.default_rng(seed)
     return pd.DataFrame({
         "age": rng.normal(45, 12, n).clip(18, 90).round(),
@@ -53,7 +53,7 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
 
     real = make_real_data()
-    print(f"=== Dataset real: {real.shape} ===")
+    print(f"=== Real dataset: {real.shape} ===")
     print(real.head(3).to_string(index=False))
 
     privacy = DPSGD(epsilon=epsilon, delta=1e-5)
@@ -75,41 +75,41 @@ def main() -> int:
         random_state=0,
     )
 
-    print(f"\n=== Entrenando dp-gan: epsilon objetivo {epsilon} (DP-SGD) + "
+    print(f"\n=== Training dp-gan: target epsilon {epsilon} (DP-SGD) + "
           f"{ecdf_eps} (DP-ECDF) ===")
-    print("    codificacion numerica 'uniform' + DP-ECDF de marginales con"
-          " composicion secuencial")
+    print("    'uniform' numeric encoding + DP-ECDF of marginals with"
+          " sequential composition")
     synthetic = synth.generate(real, num_rows=len(real))
     synthetic.to_csv(OUT / "synthetic.csv", index=False)
 
     eps_measured = synth.accountant.get_epsilon()
-    print(f"epsilon acumulado real (RDP): {eps_measured:.4f}")
-    print(f"epsilon TOTAL (DP-SGD + DP-ECDF): {eps_measured + ecdf_eps:.4f}")
+    print(f"real accumulated epsilon (RDP): {eps_measured:.4f}")
+    print(f"TOTAL epsilon (DP-SGD + DP-ECDF): {eps_measured + ecdf_eps:.4f}")
 
-    print("\n=== Evaluando utilidad y privacidad ===")
+    print("\n=== Evaluating utility and privacy ===")
     report = synth.evaluate(real, synthetic)
     report.save(OUT / "report.html")
     print(report.summary())
 
-    print("\n=== Persistiendo el sintetizador sin reentrenar ===")
+    print("\n=== Persisting the synthesizer without retraining ===")
     model_path = synth.save_model(OUT / "demo_model.sz")
 
-    print("\n=== Recargando y regenerando ===")
+    print("\n=== Reloading and regenerating ===")
     loaded = PrivacyPreservingSynthesizer.load_model(model_path)
     resample = loaded.sample(len(real))
     resample.to_csv(OUT / "resample.csv", index=False)
-    print(f"regeneradas {len(resample)} filas, epsilon registrado "
+    print(f"regenerated {len(resample)} rows, recorded epsilon "
           f"{loaded.accountant.get_epsilon():.4f}")
 
-    print("\n=== Validando la garantia DP (assert_dp) ===")
+    print("\n=== Validating the DP guarantee (assert_dp) ===")
     assurance: DpAssurance = loaded.assert_dp()
-    print(f"estado: {assurance.status}")
-    print(f"ventana [medido, presupuesto]: {assurance.window}")
-    print(f"pasos contabilizados/ejecutados: {assurance.accounted_steps}/{assurance.actual_private_steps} "
+    print(f"status: {assurance.status}")
+    print(f"window [measured, budget]: {assurance.window}")
+    print(f"accounted/executed steps: {assurance.accounted_steps}/{assurance.actual_private_steps} "
           f"({'OK' if assurance.steps_match else 'NO'})")
     print(assurance.message)
 
-    print(f"\n=== Artefactos en {OUT} ===")
+    print(f"\n=== Artifacts in {OUT} ===")
     for p in sorted(OUT.iterdir()):
         print(f"  - {p.name}")
 

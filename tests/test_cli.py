@@ -29,7 +29,7 @@ def test_cli_generate_and_evaluate(real_data, tmp_path):
 
 
 def test_cli_epsilon_trains_dp(real_data, tmp_path, caplog):
-    """'--epsilon' activa el generador dp-gan con DP real (no puede avisar de "sin garantia")."""
+    """'--epsilon' switches the dp-gan generator with real DP (cannot warn "no guarantee")."""
     import logging
 
     real_csv = tmp_path / "real.csv"
@@ -45,5 +45,5 @@ def test_cli_epsilon_trains_dp(real_data, tmp_path, caplog):
         ])
     assert res.exit_code == 0, res.output
     assert synth_csv.exists()
-    assert "sin garantia formal" not in caplog.text.lower()
-    assert "epsilon objetivo" in caplog.text.lower()
+    assert "no formal guarantee" not in caplog.text.lower()
+    assert "target epsilon" in caplog.text.lower()

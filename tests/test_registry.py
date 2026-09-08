@@ -30,7 +30,7 @@ def test_build_unknown_raises():
 
 
 def test_register_duplicate_key_raises():
-    """Registrar de nuevo una clave existente debe fallar en el momento de decorar."""
+    """Registering an existing key again must fail at decoration time."""
     with pytest.raises(ValueError):
         @register_generator("gaussian-copula")
         class Dummy:  # pragma: no cover

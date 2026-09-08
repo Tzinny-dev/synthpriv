@@ -1,4 +1,4 @@
-"""Generadores de datos sinteticos."""
+"""Synthetic data generators."""
 
 from synthpriv.dp.gan import DPSGDGenerator
 from synthpriv.generators.tabular import (

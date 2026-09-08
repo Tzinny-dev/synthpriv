@@ -1,4 +1,4 @@
-"""Metricas de utilidad: cuanto se parecen los datos sinteticos a los reales."""
+"""Utility metrics: how close the synthetic data is to the real one."""
 
 from __future__ import annotations
 
@@ -18,10 +18,10 @@ def _numeric_columns(real: pd.DataFrame, synth: pd.DataFrame) -> list[str]:
 
 
 def ks_test(real: pd.DataFrame, synth: pd.DataFrame, significance: float = 0.05) -> MetricResult:
-    """Prueba de Kolmogorov-Smirnov por columna numerica.
+    """Kolmogorov-Smirnov test per numeric column.
 
-    Hipotesis nula: las distribuciones marginales coinciden. ``p >= significance``
-    implica que no se puede rechazar la igualdad -> la columna es util.
+    Null hypothesis: the marginal distributions match. ``p >= significance``
+    implies equality cannot be rejected -> the column is useful.
     """
     cols = _numeric_columns(real, synth)
     per_col = {}
@@ -31,12 +31,12 @@ def ks_test(real: pd.DataFrame, synth: pd.DataFrame, significance: float = 0.05)
         per_col[c] = {"statistic": round(float(D), 4), "p_value": round(float(p), 4)}
         p_values.append(float(p))
     if not p_values:
-        return MetricResult(name="ks_test", status="error", message="No hay columnas numericas para KS.")
+        return MetricResult(name="ks_test", status="error", message="No numeric columns for KS.")
     min_p = min(p_values)
     status, msg = evaluate_status(min_p, significance, "higher_is_better")
     return MetricResult(
         name="ks_test",
-        description="KS por columna: p>=alpha implica distribuciones estadisticamente iguales",
+        description="KS per column: p>=alpha implies statistically equal distributions",
         value=round(min_p, 4),
         threshold=significance,
         direction="higher_is_better",
@@ -51,18 +51,18 @@ def ks_test(real: pd.DataFrame, synth: pd.DataFrame, significance: float = 0.05)
 
 
 def correlation_mae(real: pd.DataFrame, synth: pd.DataFrame, max_mae: float = 0.05) -> MetricResult:
-    """Error absoluto medio entre matrices de correlacion de Pearson."""
+    """Mean absolute error between Pearson correlation matrices."""
     cols = _numeric_columns(real, synth)
     if len(cols) < 2:
         return MetricResult(name="correlation_mae", status="reported",
-                            message="Se necesitan >=2 columnas numericas.")
+                            message="Need >=2 numeric columns.")
     corr_real = real[cols].corr().values
     corr_synth = synth[cols].corr().values
     mae = float(np.nanmean(np.abs(corr_real - corr_synth)))
     status, msg = evaluate_status(mae, max_mae, "lower_is_better")
     return MetricResult(
         name="correlation_mae",
-        description="MAE entre matrices de correlacion (menor = mejor)",
+        description="MAE between correlation matrices (lower = better)",
         value=round(mae, 4),
         threshold=max_mae,
         direction="lower_is_better",
@@ -100,16 +100,16 @@ def ml_utility(
     test_size: float = 0.3,
     min_score: float = 0.6,
 ) -> MetricResult:
-    """Rendimiento 'Train on Synthetic, Test on Real' (TSTR).
+    """Train-on-Synthetic-Test-on-Real (TSTR) performance.
 
-    Entrena un modelo sobre los datos sinteticos y lo evalua sobre los reales
-    (TSTR); tambien entrena y evalua con datos reales (TRTS) como referencia
-    maxima alcanzable. ``value`` es la metrica TSTR.
+    Trains a model on the synthetic data and evaluates it on the real one
+    (TSTR); also trains and evaluates on real data (TRTS) as the maximum
+    reachable reference. ``value`` is the TSTR metric.
     """
     target = _infer_target(real, target)
     if target not in synth.columns:
         return MetricResult(name="ml_utility", status="error",
-                            message=f"Columna objetivo {target!r} no existe en los datos sinteticos.")
+                            message=f"Target column {target!r} does not exist in the synthetic data.")
 
     X_real, X_synth = _encode_features(real, synth, target)
     y_real, y_synth = real[target], synth[target]
@@ -147,7 +147,7 @@ def ml_utility(
     status, msg = evaluate_status(tstr, min_score, "higher_is_better")
     return MetricResult(
         name="ml_utility",
-        description="TSTR: modelo entrenado en sinteticos evaluado en reales (higher = better)",
+        description="TSTR: model trained on synthetic evaluated on real (higher = better)",
         value=round(float(tstr), 4),
         threshold=min_score,
         direction="higher_is_better",

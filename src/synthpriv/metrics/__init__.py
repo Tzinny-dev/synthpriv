@@ -1,4 +1,4 @@
-"""Metricas de utilidad y privacidad de synthpriv."""
+"""synthpriv utility and privacy metrics."""
 
 from synthpriv.metrics import base, privacy, utility
 from synthpriv.metrics.core import (

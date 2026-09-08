@@ -1,4 +1,4 @@
-"""Registro de metricas y funciones de orquestacion."""
+"""Metric registry and orchestration functions."""
 
 from __future__ import annotations
 
@@ -10,15 +10,15 @@ from synthpriv.metrics.base import MetricResult, summarize
 from synthpriv.metrics import privacy as _privacy_metrics
 from synthpriv.metrics import utility as _utility_metrics
 
-# Las metricas son callables ``f(real: DataFrame, synth: DataFrame, **kw) -> MetricResult``.
+# Metrics are callables ``f(real: DataFrame, synth: DataFrame, **kw) -> MetricResult``.
 _METRICS: dict[str, Callable[..., MetricResult]] = {}
 
 
 def register_metric(fn: Callable[..., MetricResult], name: str | None = None):
-    """Registra una funcion de metrica bajo ``name`` (sys.modules[fn.__module__].__name__)."""
+    """Register a metric function under ``name`` (sys.modules[fn.__module__].__name__)."""
     key = name or fn.__name__
     if key in _METRICS:
-        raise ValueError(f"La metrica {key!r} ya esta registrada")
+        raise ValueError(f"Metric {key!r} is already registered")
     _METRICS[key] = fn
     return fn
 
@@ -45,12 +45,12 @@ def run_metric(name: str, real: pd.DataFrame, synth: pd.DataFrame, **kwargs) -> 
         return MetricResult(
             name=name,
             status="error",
-            message=f"La metrica {name!r} fallo: {exc}",
+            message=f"Metric {name!r} failed: {exc}",
         )
 
 
 def evaluate_metrics(real, synth, metric_names, metric_options=None) -> dict[str, MetricResult]:
-    """Ejecuta una lista de metricas sobre (real, synth)."""
+    """Run a list of metrics over (real, synth)."""
     metric_options = metric_options or {}
     results = {}
     for name in metric_names:
@@ -71,7 +71,7 @@ def evaluate_privacy(real, synth, metric_names=None, metric_options=None) -> dic
 
 
 def metrics_summary(*groups: dict[str, MetricResult]) -> dict[str, int]:
-    """Resumen combinado de varios grupos de metricas."""
+    """Combined summary of several metric groups."""
     combined: dict[str, MetricResult] = {}
     for group in groups:
         combined.update(group)

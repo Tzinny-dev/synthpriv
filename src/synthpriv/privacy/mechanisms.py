@@ -1,11 +1,11 @@
-"""Mecanismos de privacidad diferencial (DP).
+"""Differential privacy (DP) mechanisms.
 
-Fase actual (0.1): solo ``NoPrivacy`` esta operativo. ``DPSGD`` queda como
-configuracion declarativa; la integracion real con Opacus llegara en la fase 2.
+Current phase (0.1): only ``NoPrivacy`` is operational. ``DPSGD`` is a
+declarative configuration; the real Opacus integration arrives in phase 2.
 
-Regla de oro: si ``is_dp`` es ``True`` pero ``available`` es ``False``, el
-pipeline se niega a proseguir o avisa claramente para no vender garantias que
-el codigo todavia no entrega.
+Golden rule: if ``is_dp`` is ``True`` but ``available`` is ``False``, the
+pipeline refuses to proceed or warns clearly so that no guarantees are
+claimed that the code does not yet deliver.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from typing import Any
 
 @dataclass
 class PrivacyMechanism:
-    """Base de todo mecanismo de privacidad."""
+    """Base for every privacy mechanism."""
 
     name: str = "base"
     is_dp: bool = False
@@ -24,7 +24,7 @@ class PrivacyMechanism:
     notes: str = ""
 
     def get_report(self) -> dict[str, Any]:
-        """Dict descriptivo para incluir en el informe de evaluacion."""
+        """Descriptive dict to include in the evaluation report."""
         return {
             "mechanism": self.name,
             "dp": self.is_dp,
@@ -37,27 +37,27 @@ class PrivacyMechanism:
 
 @dataclass
 class NoPrivacy(PrivacyMechanism):
-    """Sin mecanismo formal de DP.
+    """No formal DP mechanism.
 
-    La privacidad queda mitigada empiricamente (calidad del generador + metricas
-    de riesgo). Warning de jaque permanente: no da garantia formal alguna.
+    Privacy is only mitigated empirically (generator quality + risk metrics).
+    Permanent check warning: it gives no formal guarantee at all.
     """
 
     name: str = "no-privacy"
     is_dp: bool = False
     notes: str = (
-        "Sin garantia formal de privacidad diferencial. El riesgo de re-identificacion "
-        "debe evaluarse con las metricas del informe."
+        "No formal differential privacy guarantee. Re-identification risk must be "
+        "assessed with the report metrics."
     )
 
 
 @dataclass
 class DPSGD(PrivacyMechanism):
-    """Entrenamiento con DP-SGD (Opacus).
+    """Training with DP-SGD (Opacus).
 
-    Tras ``fit``, ``used_noise_multiplier`` guarda el ruido aplicado y el
-    accountant RDP devuelve el epsilon *acumulado real* (<= objetivo si el tamano
-    de muestra lo permite). Usa el generador ``dp-gan``.
+    After ``fit``, ``used_noise_multiplier`` holds the applied noise and the
+    RDP accountant returns the *real accumulated* epsilon (<= target when the
+    sample size allows it). Uses the ``dp-gan`` generator.
     """
 
     name: str = "dp-sgd"
@@ -69,6 +69,7 @@ class DPSGD(PrivacyMechanism):
     max_grad_norm: float = 1.0
     used_noise_multiplier: float | None = field(default=None, init=False)
     notes: str = (
-        "DP-SGD con accountant RDP de Opacus. El epsilon del informe es el acumulado "
-        "real tras entrenar, no el objetivo configurado. Exige el generador 'dp-gan'."
+        "DP-SGD with Opacus's RDP accountant. The report epsilon is the real "
+        "accumulated one after training, not the configured target. Requires the "
+        "'dp-gan' generator."
     )

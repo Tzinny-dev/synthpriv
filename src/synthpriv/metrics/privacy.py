@@ -1,4 +1,4 @@
-"""Metricas de privacidad: riesgo de re-identificacion e inferencia."""
+"""Privacy metrics: re-identification and inference risk."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from synthpriv.metrics.base import MetricResult, evaluate_status
 
 
 def _encode_mixed(real: pd.DataFrame, synth: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Codifica real y synth a un espacio numerico uniforme (one-hot + escalado)."""
+    """Encode real and synth into a uniform numeric space (one-hot + scaling)."""
     union_cols = [c for c in real.columns if c in synth.columns]
     combined = pd.concat([real[union_cols], synth[union_cols]], axis=0)
     dummies = pd.get_dummies(combined)
@@ -27,35 +27,35 @@ def _encode_mixed(real: pd.DataFrame, synth: pd.DataFrame) -> tuple[np.ndarray, 
 def nndr(real: pd.DataFrame, synth: pd.DataFrame, threshold: float = 0.8, sample: int = 2000) -> MetricResult:
     """Nearest Neighbor Distance Ratio.
 
-    Por cada fila sintetica ``i``: ratio = d(real mas cercana) / d(sintetica mas cercana sin ella misma).
-    Ratios << 1 implican que hay sinteticos casi-copias de registros reales (riesgo de
-    re-identificacion). Valores >= 1 indican que los sinteticos no estan pegados a los reales.
+    For each synthetic row ``i``: ratio = d(nearest real) / d(nearest synthetic excluding itself).
+    Ratios << 1 imply near-duplicates of real records among the synthetic ones (re-identification
+    risk). Values >= 1 indicate the synthetic points are not stuck to the real ones.
     """
     Xr, Xs = _encode_mixed(real, synth)
-    if len(Xs) > sample:  # acotar coste de kNN en datasets grandes
+    if len(Xs) > sample:  # bound the cost of kNN on large datasets
         rng = np.random.default_rng(0)
         Xs = Xs[rng.choice(len(Xs), size=sample, replace=False)]
     if len(Xs) < 2:
         return MetricResult(name="nndr", status="error",
-                            message="Se necesitan >=2 filas sinteticas para NNDR.")
+                            message="Need >=2 synthetic rows for NNDR.")
 
     nn_real = NearestNeighbors(n_neighbors=1).fit(Xr)
     nn_synth = NearestNeighbors(n_neighbors=2).fit(Xs)
     d_real, _ = nn_real.kneighbors(Xs, 1)
     d_synth, _ = nn_synth.kneighbors(Xs, 2)
-    d_real, d_synth = d_real[:, 0], d_synth[:, -1]  # 2o vecino excluye la fila misma
+    d_real, d_synth = d_real[:, 0], d_synth[:, -1]  # 2nd neighbor excludes the row itself
 
     with np.errstate(divide="ignore", invalid="ignore"):
         ratios = np.where(d_synth > 0, d_real / np.where(d_synth > 0, d_synth, np.nan), np.nan)
     ratios = ratios[~np.isnan(ratios)]
     if ratios.size == 0:
-        return MetricResult(name="nndr", status="error", message="No hay distancias validas para NNDR.")
+        return MetricResult(name="nndr", status="error", message="No valid distances for NNDR.")
 
     value = float(np.mean(ratios))
     status, msg = evaluate_status(value, threshold, "higher_is_better")
     return MetricResult(
         name="nndr",
-        description="Media de d(real_knn)/d(synth_knn); >= threshold sugiere bajo riesgo de copia",
+        description="Mean d(real_knn)/d(synth_knn); >= threshold suggests low copy risk",
         value=round(value, 4),
         threshold=threshold,
         direction="higher_is_better",
@@ -70,18 +70,18 @@ def nndr(real: pd.DataFrame, synth: pd.DataFrame, threshold: float = 0.8, sample
 
 
 def mia_auc(real: pd.DataFrame, synth: pd.DataFrame, threshold: float = 0.7, folds: int = 5) -> MetricResult:
-    """Ataque de inferencia de pertenencia (Membership Inference).
+    """Membership inference attack.
 
-    Entrena un clasificador para distinguir filas reales de sinteticas
-    (validacion cruzada). AUC ~0.5 = indistinguibles (bueno); AUC alto = los
-    sinteticos son distinguibles y un atacante podria inferir pertenencia.
+    Trains a classifier to distinguish real from synthetic rows
+    (cross-validation). AUC ~0.5 = indistinguishable (good); high AUC = the
+    synthetic rows are distinguishable and an attacker could infer membership.
     """
     Xr, Xs = _encode_mixed(real, synth)
     X = np.vstack([Xr, Xs])
     y = np.concatenate([np.ones(len(real)), np.zeros(len(synth))])
     if len(np.unique(y)) < 2 or len(y) < folds * 4:
         return MetricResult(name="mia_auc", status="reported",
-                            message="Datos insuficientes para el ataque MIA.")
+                            message="Insufficient data for the MIA attack.")
 
     pipeline = make_pipeline(StandardScaler(), LogisticRegression(max_iter=2000))
     aucs, bas = [], []
@@ -97,7 +97,7 @@ def mia_auc(real: pd.DataFrame, synth: pd.DataFrame, threshold: float = 0.7, fol
     status, msg = evaluate_status(value, threshold, "lower_is_better")
     return MetricResult(
         name="mia_auc",
-        description="AUC del ataque de pertenencia; ~0.5 = buena privacidad, >0.7 = distinguibles",
+        description="Membership attack AUC; ~0.5 = good privacy, >0.7 = distinguishable",
         value=round(value, 4) if not np.isnan(value) else None,
         threshold=threshold,
         direction="lower_is_better",
@@ -112,17 +112,17 @@ def mia_auc(real: pd.DataFrame, synth: pd.DataFrame, threshold: float = 0.7, fol
 
 
 # ---------------------------------------------------------------------------
-# Ataques de anonymeter (discovery, inference, linkability)
+# anonymeter attacks (discovery, inference, linkability)
 # ---------------------------------------------------------------------------
 
 def _anonymeter_guard(exc: Exception, name: str) -> MetricResult:
     return MetricResult(name=name, status="error",
-                        message=f"El evaluador de anonymeter no pudo completarse: {exc}")
+                        message=f"The anonymeter evaluator could not complete: {exc}")
 
 
 def anonymeter_discovery(real: pd.DataFrame, synth: pd.DataFrame,
                          n_attacks: int = 5, threshold: float = 0.1) -> MetricResult:
-    """Ratio de descubrimiento univariado: % de filas reales "recuperadas" en los sinteticos."""
+    """Univariate discovery ratio: % of real rows "recovered" in the synthetic ones."""
     try:
         from anonymeter.evaluators import UnivariateDiscoveryEvaluator
     except Exception as exc:  # pragma: no cover - dependencia opcional
@@ -139,11 +139,11 @@ def anonymeter_discovery(real: pd.DataFrame, synth: pd.DataFrame,
         rate = getattr(finding, "rate", None)
         if rate is None or (isinstance(rate, float) and np.isnan(rate)):
             return MetricResult(name="anonymeter_discovery", status="reported",
-                                message="El evaluador no encontro coincidencias suficientes (success_rate NaN).")
+                                message="The evaluator found no sufficient matches (success_rate NaN).")
         status, msg = evaluate_status(float(rate), threshold, "lower_is_better")
         return MetricResult(
             name="anonymeter_discovery",
-            description="% de filas reales recuperables en el conjunto sintetico (menor = mejor)",
+            description="% of real rows recoverable in the synthetic set (lower = better)",
             value=round(float(rate), 4),
             threshold=threshold,
             direction="lower_is_better",
@@ -157,7 +157,7 @@ def anonymeter_discovery(real: pd.DataFrame, synth: pd.DataFrame,
 
 def anonymeter_inference(real: pd.DataFrame, synth: pd.DataFrame,
                          n_attacks: int = 3, threshold: float = 0.1) -> MetricResult:
-    """Ataque de inferencia de atributo sensible a partir de atributos auxiliares."""
+    """Sensitive-attribute inference attack from auxiliary attributes."""
     try:
         from anonymeter.evaluators import InferenceEvaluator
     except Exception as exc:  # pragma: no cover
@@ -166,7 +166,7 @@ def anonymeter_inference(real: pd.DataFrame, synth: pd.DataFrame,
     cols = list(real.columns)
     if len(cols) < 3:
         return MetricResult(name="anonymeter_inference", status="reported",
-                            message="Se necesitan >=3 columnas (auxiliares + secreta) para el ataque.")
+                            message="Need >=3 columns (auxiliaries + secret) for the attack.")
     aux, secret = cols[:2], [cols[2]]
     try:
         evaluator = InferenceEvaluator(
@@ -178,11 +178,11 @@ def anonymeter_inference(real: pd.DataFrame, synth: pd.DataFrame,
         rate = getattr(finding, "rate", None)
         if rate is None or (isinstance(rate, float) and np.isnan(rate)):
             return MetricResult(name="anonymeter_inference", status="reported",
-                                message="Success rate NaN: datos insuficientes para inferencia.")
+                                message="Success rate NaN: insufficient data for inference.")
         status, msg = evaluate_status(float(rate), threshold, "lower_is_better")
         return MetricResult(
             name="anonymeter_inference",
-            description="Exito en inferir el atributo secreto desde auxiliares (menor = mejor)",
+            description="Success inferring the secret attribute from auxiliaries (lower = better)",
             value=round(float(rate), 4),
             threshold=threshold,
             direction="lower_is_better",
@@ -196,7 +196,7 @@ def anonymeter_inference(real: pd.DataFrame, synth: pd.DataFrame,
 
 def anonymeter_linkability(real: pd.DataFrame, synth: pd.DataFrame,
                            n_attacks: int = 3, threshold: float = 0.1) -> MetricResult:
-    """Ataque de enlazado: juntar dos mitades de atributos para re-identificar."""
+    """Linkability attack: join two attribute halves to re-identify."""
     try:
         from anonymeter.evaluators import LinkabilityEvaluator
     except Exception as exc:  # pragma: no cover
@@ -205,7 +205,7 @@ def anonymeter_linkability(real: pd.DataFrame, synth: pd.DataFrame,
     cols = list(real.columns)
     if len(cols) < 2:
         return MetricResult(name="anonymeter_linkability", status="reported",
-                            message="Se necesitan >=2 columnas para dividir atributos auxiliares.")
+                            message="Need >=2 columns to split auxiliary attributes.")
     aux = (cols[: len(cols) // 2], cols[len(cols) // 2:])
     try:
         evaluator = LinkabilityEvaluator(
@@ -217,11 +217,11 @@ def anonymeter_linkability(real: pd.DataFrame, synth: pd.DataFrame,
         rate = getattr(finding, "rate", None)
         if rate is None or (isinstance(rate, float) and np.isnan(rate)):
             return MetricResult(name="anonymeter_linkability", status="reported",
-                                message="Success rate NaN: datos insuficientes para linkability.")
+                                message="Success rate NaN: insufficient data for linkability.")
         status, msg = evaluate_status(float(rate), threshold, "lower_is_better")
         return MetricResult(
             name="anonymeter_linkability",
-            description="Exito en enlazar mitades de registros (menor = mejor)",
+            description="Success linking halves of records (lower = better)",
             value=round(float(rate), 4),
             threshold=threshold,
             direction="lower_is_better",

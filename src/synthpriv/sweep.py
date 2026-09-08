@@ -1,8 +1,8 @@
-"""Barrido epsilon vs utilidad para explorar el trade-off privacidad/utilidad.
+"""Epsilon vs utility sweep to explore the privacy/utility trade-off.
 
-Entrena ``dp-gan`` con varios presupuestos de privacidad, mide el epsilon real
-(accountant RDP) y evalua la utilidad de cada punto. El resultado es una tabla
-ordenada por epsilon medido y un informe HTML con las curvas.
+Trains ``dp-gan`` with several privacy budgets, measures the real epsilon
+(RDP accountant) and evaluates the utility of each point. The result is a
+table ordered by measured epsilon and an HTML report with the curves.
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ _DEFAULT_EPSILONS = (0.1, 0.5, 1.0, 2.0, 5.0, 50.0)
 
 @dataclass
 class SweepResult:
-    """Resultado de un barrido epsilon-utilidad.
+    """Result of an epsilon-utility sweep.
 
-    Cada row es un dict: ``target_epsilon``, ``measured_epsilon``,
-    ``util_<metrica>``, ``priv_<metrica>`` y ``fit_seconds``.
+    Each row is a dict: ``target_epsilon``, ``measured_epsilon``,
+    ``util_<metric>``, ``priv_<metric>`` and ``fit_seconds``.
     """
 
     rows: list[dict[str, Any]] = field(default_factory=list)
@@ -36,7 +36,7 @@ class SweepResult:
     privacy_metrics: list[str] = field(default_factory=list)
 
     def dataframe(self) -> pd.DataFrame:
-        """Filas ordenadas por epsilon medido ascendentemente."""
+        """Rows ordered by measured epsilon, ascending."""
         df = pd.DataFrame(self.rows)
         if "measured_epsilon" in df.columns:
             df = df.sort_values("measured_epsilon", na_position="last")
@@ -47,14 +47,14 @@ class SweepResult:
         return Path(path)
 
     def save_report(self, path: str | Path) -> Path:
-        """Informe HTML con la curva epsilon medido vs valor de cada metrica."""
+        """HTML report with the measured-epsilon vs metric-value curve."""
         return render_sweep_html(self, Path(path))
 
     def best_tradeoff(self, metric: str, threshold: float, lower_is_better: bool = True):
-        """Mejor punto: el de menor epsilon medido que cumple el umbral de ``metric``.
+        """Best point: the one with the lowest measured epsilon meeting ``metric`` threshold.
 
-        Por ejemplo ``best_tradeoff("util_correlation_mae", 0.05)`` devuelve el
-        punto mas privado cuya utilidad (MAE de correlaciones) sigue dentro de 0.05.
+        For example ``best_tradeoff("util_correlation_mae", 0.05)`` returns the
+        most private point whose utility (correlation MAE) is still within 0.05.
         """
         candidates = [
             r for r in self.rows
@@ -77,11 +77,11 @@ def run_epsilon_sweep(
     num_rows: int | None = None,
     random_state: int = 0,
 ) -> SweepResult:
-    """Entrena ``dp-gan`` por cada ``epsilons`` y registra utilidad + epsilon real.
+    """Train ``dp-gan`` for each of ``epsilons`` and record utility + real epsilon.
 
-    Un epsilon muy grande (p.ej. 50) equivale practicamente a "sin DP": sirve de
-    tope de utilidad para la arquitectura. El epsilon medido (accountant RDP)
-    es el que se presenta en la curva.
+    A very large epsilon (e.g. 50) is practically equivalent to "no DP": it works
+    as the architecture's utility ceiling. The measured epsilon (RDP accountant)
+    is the one plotted in the curve.
     """
     generator_kwargs = generator_kwargs or {}
     utility_metrics = utility_metrics or ["ks_test", "correlation_mae", "ml_utility"]
@@ -99,7 +99,7 @@ def run_epsilon_sweep(
             metric_options=metric_options,
             random_state=random_state,
         )
-        logger.info("[sweep] epsilon objetivo %.2f -> entrenando dp-gan ...", eps)
+        logger.info("[sweep] target epsilon %.2f -> training dp-gan ...", eps)
         synthesizer.fit(real_data)
         n = num_rows or len(real_data)
         synthetic = synthesizer.sample(n)
@@ -117,7 +117,7 @@ def run_epsilon_sweep(
         for name, res in report.data["privacy_metrics"].items():
             row[f"priv_{name}"] = res.value
         rows.append(row)
-        logger.info("[sweep] eps objetivo %.2f -> medido %s | util=%s",
+        logger.info("[sweep] target eps %.2f -> measured %s | util=%s",
                     eps, row["measured_epsilon"], {k: v for k, v in row.items() if k.startswith("util_")})
 
     return SweepResult(rows=rows, utility_metrics=list(utility_metrics),

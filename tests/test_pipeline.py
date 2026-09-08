@@ -34,7 +34,7 @@ def test_pipeline_default_generator_is_ctgan(real_data):
 
 
 def test_pipeline_requires_dp_capable_generator():
-    """DPSGD exige el generador 'dp-gan'; un generador normal debe rechazarse."""
+    """DPSGD requires the 'dp-gan' generator; a regular generator must be rejected."""
     with pytest.raises(ValueError, match="dp-gan"):
         PrivacyPreservingSynthesizer(
             generator_key="gaussian-copula",

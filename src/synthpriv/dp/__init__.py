@@ -1,4 +1,4 @@
-"""Generadores diferencialmente privados (DP-SGD con Opacus, copula privada)."""
+"""Differentially private generators (DP-SGD with Opacus, private copula)."""
 
 from synthpriv.dp import copula, encoder, gan
 

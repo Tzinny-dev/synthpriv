@@ -1,8 +1,8 @@
-"""Tests de synthpriv (Fase 0 + 1).
+"""synthpriv tests (Phase 0 + 1).
 
-Los tests entrenan solo el generador rapido (GaussianCopula) para mantener el
-suite veloz. Los deep generators (CTGAN/TVAE/CopulaGAN) quedan marcados como
-``slow`` y no se ejecutan por defecto.
+The tests only train the fast generator (GaussianCopula) to keep the suite fast.
+Deep generators (CTGAN/TVAE/CopulaGAN) are marked ``slow`` and are not run by
+default.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ import pytest
 
 @pytest.fixture
 def real_data() -> pd.DataFrame:
-    """Dataset mixto pequeno y determinista (numerico + categorico)."""
+    """Small deterministic mixed dataset (numeric + categorical)."""
     rng = np.random.default_rng(42)
     n = 400
     return pd.DataFrame({
@@ -28,7 +28,7 @@ def real_data() -> pd.DataFrame:
 
 @pytest.fixture
 def synth_data(real_data) -> pd.DataFrame:
-    """Datos 'sinteticos' generados rapidos con la copula gaussiana."""
+    """Fast 'synthetic' data generated with the Gaussian copula."""
     from synthpriv import GaussianCopulaGenerator
 
     gen = GaussianCopulaGenerator(random_state=0)

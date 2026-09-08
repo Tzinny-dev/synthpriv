@@ -1,29 +1,28 @@
-"""Copula gaussiana con privacidad diferencial (``dp-copula``).
+"""Gaussian copula with differential privacy (``dp-copula``).
 
-Modelo completamente parametrico y rapido que ataca el punto debil del
-``dp-gan``: la estructura de dependencia. La garantia es **DP pura** (delta 0)
-porque todos los sub-mecanismos son Laplace (ningun ruido gaussiano RDP):
+Fully parametric, fast model that attacks the ``dp-gan`` weak spot: the
+dependence structure. The guarantee is **pure DP** (delta 0) because all
+sub-mechanisms are Laplace (no RDP Gaussian noise):
 
-1. **Marginales**: ``DPEcdf`` por columna numerica (histograma Laplace,
-   composicion paralela por bins; presupuesto ``margins_fraction * epsilon``
-   repartido secuencialmente entre columnas).
-2. **Dependencia (copula)**: sobre los gaussianos ``z = Phi^-1(rank)`` reales
-   (transformacion determinista a partir de n, con valores acotados por
-   ``B = Phi^-1((n-0.5)/n)``, cifra publica), la covarianza muestral se
-   perturba entrada a entrada con Laplace de escala
-   ``(B^2 / n) / epsilon_entry``. Sensibilidad por entrada <= B^2/n (quitar una
-   fila cambia un termino del sumatorio por fila). Como las entradas comparten
-   los datos, la composicion es **secuencial** entre las ``d(d-1)/2``
-   correlaciones: ``epsilon_entry = corr_fraction * epsilon / n_entries``.
-   Despues se proyecta a la esfera de correlaciones (PSD + diagonal 1).
-3. **Categoricas**: frecuencias con Laplace (composicion paralela entre
-   categorias, secuencial entre columnas; presupuesto el resto de ``epsilon``).
+1. **Marginals**: ``DPEcdf`` per numeric column (Laplace histogram, parallel
+   composition by bins; budget ``margins_fraction * epsilon`` split sequentially
+   across columns).
+2. **Dependence (copula)**: over the real Gaussians ``z = Phi^-1(rank)``
+   (deterministic transformation from n, with values bounded by
+   ``B = Phi^-1((n-0.5)/n)``, a public quantity), the sample covariance is
+   perturbed entry-wise with Laplace noise of scale ``(B^2 / n) / epsilon_entry``.
+   Sensitivity per entry <= B^2/n (removing a row changes one per-row term of the
+   sum). As entries share the data, the composition is **sequential** across the
+   ``d(d-1)/2`` correlations: ``epsilon_entry = corr_fraction * epsilon /
+   n_entries``. It is then projected to the correlation sphere (PSD + diagonal 1).
+3. **Categoricals**: Laplace frequencies (parallel composition across
+   categories, sequential across columns; budget the rest of ``epsilon``).
 
-El muestreo es post-proceso de estas salidas DP: copula gaussiana privada
-``N(0, R)`` -> ``u = Phi(z)`` -> ``DPEcdf.quantile(u)`` y multinomiales
-privadas. La dependencia es la principal ganancia frente a las marginals
-independientes, y su coste es total: el presupuesto se reparte entre marginales,
-copula y categoricas segun las fracciones configurables.
+Sampling is post-processing of these DP outputs: private Gaussian copula
+``N(0, R)`` -> ``u = Phi(z)`` -> ``DPEcdf.quantile(u)`` and private
+multinomials. Dependence is the main gain over independent marginals, and its
+cost is total: the budget is split between marginals, copula and categoricals
+according to the configurable fractions.
 """
 
 from __future__ import annotations
@@ -49,27 +48,27 @@ _EPS = 1e-12
 
 @register_generator(
     key="dp-copula",
-    description="Copula gaussiana con privacidad diferencial pura (laplace): "
-                "marginales DP-ECDF + correlacion privada con proyeccion PSD.",
+    description="Gaussian copula with pure differential privacy (laplace): "
+                "DP-ECDF marginals + private correlation with PSD projection.",
     supports=("tabular",),
 )
 class DPCopulaGenerator(BaseSynthesizer):
-    """Copula gaussiana diferencialmente privada (parametrica y rapida).
+    """Differentially private Gaussian copula (parametric and fast).
 
     Parameters
     ----------
     privacy:
-        Mecanismo ``DPSGD`` con el presupuesto ``epsilon`` total. Para esta
-        generacion DP es pura (delta 0): el ``delta`` del mecanismo solo aplica
-        al DP-SGD del ``dp-gan``.
+        ``DPSGD`` mechanism with the total ``epsilon`` budget. For this
+        generator DP is pure (delta 0): the mechanism's ``delta`` only applies
+        to the ``dp-gan``'s DP-SGD.
     margins_fraction:
-        Fraccion de ``epsilon`` dedicada a los marginales numericos (repartida
-        equitativamente entre columnas).
+        Fraction of ``epsilon`` dedicated to the numeric marginals (split
+        equally across columns).
     corr_fraction:
-        Fraccion dedicada a la matriz de correlacion de la copula. Con
-        columnas categoricas, el resto va a sus frecuencias.
+        Fraction dedicated to the copula's correlation matrix. With categorical
+        columns, the rest goes to their frequencies.
     bins/bounds:
-        Cuadricula y soporte publico de las ``DPEcdf`` (ver ``DPEcdf``).
+        Grid and public support of the ``DPEcdf``s (see ``DPEcdf``).
     """
 
     name = "dp-copula"
@@ -88,9 +87,9 @@ class DPCopulaGenerator(BaseSynthesizer):
         super().__init__()
         self.privacy = privacy or DPSGD()
         if not self.privacy.is_dp:
-            raise ValueError("dp-copula exige un mecanismo DPSGD con epsilon>0")
+            raise ValueError("dp-copula requires a DPSGD mechanism with epsilon>0")
         if not 0 < margins_fraction < 1 or not 0 < corr_fraction < 1:
-            raise ValueError("margins_fraction y corr_fraction deben estar en (0, 1)")
+            raise ValueError("margins_fraction and corr_fraction must be in (0, 1)")
         self.margins_fraction = float(margins_fraction)
         self.corr_fraction = float(corr_fraction)
         self.bins = max(2, int(bins))
@@ -121,14 +120,14 @@ class DPCopulaGenerator(BaseSynthesizer):
         corr_total = self.corr_fraction * eps_total
         cat_share = 1.0 - self.margins_fraction - self.corr_fraction
         if n_cat == 0:
-            corr_total = (1.0 - self.margins_fraction) * eps_total  # todo a la copula
+            corr_total = (1.0 - self.margins_fraction) * eps_total  # everything to the copula
             cat_share = 0.0
         self.components = {"margins": margins_total, "corr": corr_total,
                            "cats": cat_share * eps_total}
         self.accounted_epsilon = eps_total
 
         n = len(data)
-        B = float(norm.ppf((n - 0.5) / n)) if n > 2 else 1.0  # cota publica de |z|
+        B = float(norm.ppf((n - 0.5) / n)) if n > 2 else 1.0  # public bound of |z|
         G = np.empty((n, n_num))
         self._ecdfs = []
         col_eps = margins_total / n_num if n_num else 0.0
@@ -137,7 +136,7 @@ class DPCopulaGenerator(BaseSynthesizer):
             ecdf = DPEcdf(epsilon=col_eps, bins=self.bins,
                           bounds=self.bounds.get(col)).fit(v, rng=self._rng)
             self._ecdfs.append(ecdf)
-            u = (v.argsort().argsort() + 0.5) / n  # rango normalizado (0,1)
+            u = (v.argsort().argsort() + 0.5) / n  # normalized rank (0,1)
             G[:, j] = np.clip(norm.ppf(u), -B, B)
 
         if n_num > 1:
@@ -168,8 +167,8 @@ class DPCopulaGenerator(BaseSynthesizer):
                 total = probs.sum() or len(keys)
                 self._cat_probs[col] = (keys, probs / total)
         self._fitted = True
-        logger.info("dp-copula ajustada: n=%d, %d numericas, %d categorica(s); "
-                    "epsilon total %.3f = marginales %.3f + copula %.3f + categorias %.3f",
+        logger.info("dp-copula fitted: n=%d, %d numeric, %d categorical(s); "
+                    "total epsilon %.3f = marginals %.3f + copula %.3f + categoricals %.3f",
                     n, n_num, n_cat, eps_total, self.components["margins"],
                     self.components["corr"], self.components["cats"])
         return self
@@ -177,7 +176,7 @@ class DPCopulaGenerator(BaseSynthesizer):
     # ------------------------------------------------------------------
     def sample(self, num_rows: int = 1000, **kwargs) -> pd.DataFrame:
         if not self._fitted:
-            raise RuntimeError("DPCopulaGenerator no entrenado: llama a fit(real_data).")
+            raise RuntimeError("DPCopulaGenerator is not fitted: call fit(real_data).")
         n = int(num_rows)
         frame: dict[str, np.ndarray] = {}
         if self.num_columns:
@@ -241,7 +240,7 @@ class DPCopulaGenerator(BaseSynthesizer):
 
 
 def _project_to_correlation(S: np.ndarray) -> np.ndarray:
-    """Proyecta una matriz simetrica a la esfera de correlaciones (PSD, diag 1)."""
+    """Project a symmetric matrix to the correlation sphere (PSD, diag 1)."""
     S = (S + S.T) / 2.0
     eigvals, eigvecs = np.linalg.eigh(S)
     eigvals = np.clip(eigvals, 0.0, None)

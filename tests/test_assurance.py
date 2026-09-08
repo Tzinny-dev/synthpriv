@@ -1,4 +1,4 @@
-"""Tests de assert_dp: valida pasos contables, presupuesto y ventana de epsilon."""
+"""assert_dp tests: validates accountable steps, budget and the epsilon window."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from synthpriv.privacy import DPSGD, DpAssurance, NoPrivacy, assert_dp
 
 
 class _FakeDP:
-    """Duplicado minimo de un generador dp-gan entrenado para tests de logica."""
+    """Minimal duplicate of a trained dp-gan generator for logic tests."""
 
     name = "dp-gan"
     dp_capable = True
@@ -27,7 +27,7 @@ def test_non_dp_generator_fails():
     assurance = assert_dp(gen)
     assert not assurance.ok()
     assert assurance.status == "fail"
-    assert "Sin garantia formal" in assurance.message
+    assert "No formal privacy guarantee" in assurance.message
 
 
 def test_budget_respected_ok():
@@ -40,11 +40,11 @@ def test_budget_respected_ok():
 
 
 def test_unaccounted_extra_steps_fail():
-    # 12 paso ejecutados, solo 10 contabilizados -> garantia viciada
+    # 12 steps executed, only 10 accounted -> void guarantee
     gen = _FakeDP(measured=1.9, privacy=DPSGD(epsilon=2.0), steps=10, actual=12)
     assurance = assert_dp(gen)
     assert not assurance.ok()
-    assert "viciada" in assurance.message
+    assert "void" in assurance.message
 
 
 def test_budget_overrun_fails():
@@ -80,7 +80,7 @@ def test_dpgan_assert_dp_after_fit(real_data):
     assert assurance.accounted_steps == assurance.actual_private_steps > 0
     assert assurance.measured_epsilon <= 20.0 * 1.05
 
-    # presupuesto declarado imposible -> must fail
+    # impossible declared budget -> must fail
     strict = gen.assert_dp(declared_epsilon=0.5)
     assert not strict.ok()
 
@@ -106,12 +106,12 @@ def test_pipeline_assert_dp_in_report(real_data, tmp_path):
     assert ar["status"] == "ok"
     assert ar["steps_match"] is True
     html = report.save(tmp_path / "dp_report.html").read_text()
-    assert "estado: ok" in html or "Garantia" in html
+    assert "DP ok" in html
 
 
 @pytest.mark.slow
 def test_assert_dp_persisted_model(tmp_path, real_data):
-    """Un modelo guardado debe conservar los contadores y seguir validando DP."""
+    """A saved model must keep the counters and keep validating DP."""
     privacy = DPSGD(epsilon=20.0, delta=1e-3)
     synth = PrivacyPreservingSynthesizer(
         generator_key="dp-gan",
@@ -129,5 +129,5 @@ def test_assert_dp_persisted_model(tmp_path, real_data):
     from synthpriv.cli import cli
     res = runner.invoke(cli, ["dpcheck", "--model", str(model)])
     assert res.exit_code == 0, res.output
-    assert "estado: ok" in res.output
-    assert "presupuesto" in res.output
+    assert "status: ok" in res.output
+    assert "budget" in res.output

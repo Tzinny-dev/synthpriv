@@ -1,8 +1,8 @@
-"""Encoders tabulares hacia un espacio numerico uniforme (y su inverso).
+"""Tabular encoders toward a uniform numeric space (and their inverse).
 
-- ``TabularEncoder``: z-score + one-hot (basico, estable).
-- ``ModeEncoder``: normalizacion mode-specific con Gaussian Mixture +
-  condicionamiento por clase imbalanced (estilo CTGAN) para mejor utilidad.
+- ``TabularEncoder``: z-score + one-hot (basic, stable).
+- ``ModeEncoder``: mode-specific normalization with Gaussian Mixture +
+  imbalanced-class conditioning (CTGAN-style) for better utility.
 """
 
 from __future__ import annotations
@@ -16,11 +16,11 @@ from synthpriv.privacy.dpecdf import DPEcdf
 
 
 class TabularEncoder:
-    """Transforma un DataFrame a un array continuo y lo reconstruye.
+    """Transform a DataFrame to a continuous array and rebuild it.
 
-    El bloque numerico usa los primeros ``num_dims`` componentes; las columnas
-    categoricas se one-hot-codean despues, sus intervalos se exponen en
-    ``categorical_spans`` como listas ``(start, end)``.
+    The numeric block uses the first ``num_dims`` components; categorical columns
+    are one-hot-encoded afterwards, their intervals exposed in
+    ``categorical_spans`` as ``(start, end)`` lists.
     """
 
     def __init__(self):
@@ -78,7 +78,7 @@ class TabularEncoder:
                 if raw in idx:
                     out[j, start + idx[raw]] = 1.0
                 else:
-                    out[j, start] = 1.0  # categorias invisibles -> primera
+                    out[j, start] = 1.0  # unseen categories -> first
         return out
 
     def inverse(self, X: np.ndarray) -> pd.DataFrame:
@@ -94,28 +94,28 @@ class TabularEncoder:
 
 
 class ModeEncoder:
-    """Encoder tabular de mejor utilidad, inspirado en CTGAN.
+    """Higher-utility tabular encoder, inspired by CTGAN.
 
-    Numericas: dos modos de normalizacion.
-    - ``mode`` (mode-specific): cada valor se asigna al modo mas probable de una
-      Gaussian Mixture (por columna), se normaliza dentro del modo y se codifica
-      junto con un one-hot del modo. Captura distribuciones multimodales que el
-      z-score aplasta. ``num_modes=1`` degenera a z-score.
-    - ``uniform`` (empirico-CDF/rank gaussianizado): mapea cada valor a su rango
-      percentil y luego a un valor normal estandar via ``Phi^-1`` (gaussianizacion
-      por columna). El inverso aplica ``Phi`` y el cuantil empirico, con lo que el
-      marginal se reconstruye por construccion **si el generador emite valores
-      normales estandar** (marginal mas facil de aprender y sin saturacion de
-      ``tanh``).
+    Numerics: two normalization modes.
+    - ``mode`` (mode-specific): each value is assigned to the most probable mode
+      of a Gaussian Mixture (per column), normalized within the mode and encoded
+      together with a mode one-hot. Captures multimodal distributions that the
+      z-score flattens. ``num_modes=1`` degenerates to z-score.
+    - ``uniform`` (empirical-CDF/rank gaussianization): maps each value to its
+      percentile rank and then to a standard normal value via ``Phi^-1``
+      (per-column gaussianization). The inverse applies ``Phi`` and the empirical
+      quantile, so the marginal is reconstructed by construction **if the
+      generator emits standard normal values** (easier marginal to learn, no
+      ``tanh`` saturation).
 
-    Categoricas: one-hot. Ademas, se elige la columna categorica mas
-    imbalanced como ``condition_column_`` (menor entropia) para el
-    condicionamiento AC-GAN del generador; sus one-hots se exponen en
+    Categoricals: one-hot. Additionally, the most imbalanced categorical column
+    is chosen as ``condition_column_`` (lowest entropy) for the generator's
+    AC-GAN conditioning; its one-hots are exposed in
     ``condition_vectors``/``sample_conditions``.
 
-    La salida usa ``blocks``: cada bloque numerico es
-    ``[valor normalizado (+ one-hot del modo en modo ``mode``)]`` y cada
-    categorico es su one-hot.
+    The output uses ``blocks``: each numeric block is
+    ``[normalized value (+ mode one-hot in ``mode`` mode)]`` and each categorical
+    is its one-hot.
     """
 
     def __init__(self, num_modes: int = 5, clip_value: float = 3.0,
@@ -129,13 +129,13 @@ class ModeEncoder:
         self.condition_column = condition_column
         self.numeric = numeric
         if numeric not in ("mode", "uniform"):
-            raise ValueError(f"numeric debe ser 'mode' o 'uniform', se recibio {numeric!r}")
+            raise ValueError(f"numeric must be 'mode' or 'uniform', got {numeric!r}")
         if dp_ecdf_epsilon is not None and numeric != "uniform":
-            raise ValueError("dp_ecdf_epsilon solo se aplica con numeric='uniform'")
+            raise ValueError("dp_ecdf_epsilon only applies with numeric='uniform'")
         self.dp_ecdf_epsilon = float(dp_ecdf_epsilon) if dp_ecdf_epsilon is not None else None
         self.ecdf_bins = max(2, int(ecdf_bins))
         self.ecdf_bounds = tuple(map(float, ecdf_bounds)) if ecdf_bounds is not None else None
-        self.ecdf_epsilon = None  # presupuesto total consumido por marginales DP (tras fit)
+        self.ecdf_epsilon = None  # total budget consumed by marginal DPs (after fit)
         self.columns: list[str] = []
         self.num_columns: list[str] = []
         self.cat_columns: list[str] = []
@@ -180,7 +180,7 @@ class ModeEncoder:
                     g.fit(v.reshape(-1, 1))
                     gmm = g
                     modes = g.predict(v.reshape(-1, 1))
-                except Exception:  # degenerado -> modo unico
+                except Exception:  # degenerate -> single mode
                     gmm = None
             if gmm is None:
                 means = [float(np.mean(v))]
@@ -216,7 +216,7 @@ class ModeEncoder:
     def _fit_condition(self, data: pd.DataFrame) -> None:
         if self.condition_column is not None:
             if self.condition_column not in self.cat_columns:
-                raise ValueError(f"Columna de condicion '{self.condition_column}' no es categorica")
+                raise ValueError(f"Condition column '{self.condition_column}' is not categorical")
             self.condition_column_ = self.condition_column
         else:
             cands = [b for b in self.blocks if b["type"] == "cat"]
@@ -243,7 +243,7 @@ class ModeEncoder:
         if b.get("kind") == "uniform":
             left = np.searchsorted(b["values"], v, side="left")
             right = np.searchsorted(b["values"], v, side="right")
-            rank = (left + right) / 2.0 / b["n"]  # promedio de empates en (0,1)
+            rank = (left + right) / 2.0 / b["n"]  # average of ties in (0,1)
             out[:, b["val"]] = np.clip(norm.ppf(rank), -self.clip_value, self.clip_value).astype(np.float32)
             return
         if b["gmm"] is not None:
@@ -296,17 +296,16 @@ class ModeEncoder:
         return pd.DataFrame(frame, columns=self.columns)
 
     def rectify(self, X: np.ndarray) -> np.ndarray:
-        """Rectifica los vecores numericos continuos a marginales uniformes.
+        """Rectify continuous numeric vectors to uniform marginals.
 
-        Para cada bloque ``uniform`` sustituye el valor por su rango percentil
-        dentro de la propia muestra ``(rank-0.5)/n`` pasado por ``Phi^-1``.
-        Como es una transformacion monotona por columna, la copula muestral
-        (correlaciones de rango/estructura de dependencia) se conserva intacta
-        mientras que el marginal de cada columna queda exactamente uniforme: el
-        inverso devuelve entonces los cuantiles empiricos reales. Util para
-        corregir el sesgo marginal del generador sin tocar la estructura
-        conjunta aprendida. Aplica sobre numericas ``uniform``; el resto del
-        vector no se modifica.
+        For each ``uniform`` block it replaces the value with its percentile rank
+        within the sample ``(rank-0.5)/n`` passed through ``Phi^-1``. As it is a
+        monotone per-column transformation, the sample copula (rank correlations /
+        dependence structure) is preserved untouched while each column's marginal
+        becomes exactly uniform: the inverse then returns the real empirical
+        quantiles. Useful to correct the generator's marginal bias without
+        touching the learned joint structure. Applies to ``uniform`` numerics;
+        the rest of the vector is not modified.
         """
         X = np.asarray(X, dtype=np.float32)
         for b in self.blocks:
@@ -320,7 +319,7 @@ class ModeEncoder:
 
     # ------------------------------------------------------------------
     def condition_vectors(self, data: pd.DataFrame) -> np.ndarray | None:
-        """One-hot de la clase de cada fila real (para el discriminador)."""
+        """One-hot of each real row's class (for the discriminator)."""
         if self.n_cond == 0:
             return None
         b = self._cond_block
@@ -332,7 +331,7 @@ class ModeEncoder:
         return out
 
     def sample_conditions(self, n: int, rng: np.random.Generator) -> np.ndarray | None:
-        """One-hot de clases para generar ``n`` filas, con la frecuencia empirica."""
+        """One-hot classes to generate ``n`` rows, with the empirical frequency."""
         if self.n_cond == 0 or self._cond_freq is None:
             return None
         c = rng.choice(self.n_cond, size=n, p=self._cond_freq)
