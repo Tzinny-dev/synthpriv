@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synthpriv"
-version = "0.1.0"
+version = "0.2.0b1"
 description = "Tabular data synthesis preserving differential privacy"
 readme = "README.md"
 license = "MIT"
@@ -22,7 +22,7 @@ keywords = [
     "sdv",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
