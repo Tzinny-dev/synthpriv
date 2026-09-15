@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "synthpriv"
-version = "0.2.0b1"
+version = "0.2.0"
 description = "Tabular data synthesis preserving differential privacy"
 readme = "README.md"
 license = "MIT"

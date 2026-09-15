@@ -3,6 +3,11 @@
 All notable changes to `synthpriv` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [SemVer](https://semver.org/).
 
+## [0.2.0] - 2026-09-15
+
+Beta validated: clean PyPI install, functional smoke (`dp-gan`/`dp-copula`),
+fast + slow suites, E2E demo. Same content as `0.2.0b1`, promoted to final.
+
 ## [0.2.0b1] - 2026-09-15
 
 Beta pre-release: public API frozen for the `0.2.x` line.
