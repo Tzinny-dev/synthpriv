@@ -27,13 +27,14 @@ _DEFAULT_EPSILONS = (0.1, 0.5, 1.0, 2.0, 5.0, 50.0)
 class SweepResult:
     """Result of an epsilon-utility sweep.
 
-    Each row is a dict: ``target_epsilon``, ``measured_epsilon``,
+    Each row is a dict: ``model``, ``target_epsilon``, ``measured_epsilon``,
     ``util_<metric>``, ``priv_<metric>`` and ``fit_seconds``.
     """
 
     rows: list[dict[str, Any]] = field(default_factory=list)
     utility_metrics: list[str] = field(default_factory=list)
     privacy_metrics: list[str] = field(default_factory=list)
+    generator: str = "dp-gan"
 
     def dataframe(self) -> pd.DataFrame:
         """Rows ordered by measured epsilon, ascending."""
@@ -70,6 +71,7 @@ def run_epsilon_sweep(
     real_data: pd.DataFrame,
     epsilons: tuple[float, ...] = _DEFAULT_EPSILONS,
     delta: float = 1e-5,
+    generator_key: str = "dp-gan",
     generator_kwargs: dict[str, Any] | None = None,
     utility_metrics: list[str] | None = None,
     privacy_metrics: list[str] | None = None,
@@ -77,10 +79,12 @@ def run_epsilon_sweep(
     num_rows: int | None = None,
     random_state: int = 0,
 ) -> SweepResult:
-    """Train ``dp-gan`` for each of ``epsilons`` and record utility + real epsilon.
+    """Train a DP generator for each of ``epsilons`` and record utility + real epsilon.
 
+    ``generator_key`` must be DP-capable (``dp-gan`` or ``dp-copula``).
     A very large epsilon (e.g. 50) is practically equivalent to "no DP": it works
-    as the architecture's utility ceiling. The measured epsilon (RDP accountant)
+    as the architecture's utility ceiling. The measured epsilon (RDP accountant
+    for ``dp-gan``, pure-DP composition for ``dp-copula``)
     is the one plotted in the curve.
     """
     generator_kwargs = generator_kwargs or {}
@@ -91,7 +95,7 @@ def run_epsilon_sweep(
     for eps in epsilons:
         privacy = DPSGD(epsilon=float(eps), delta=float(delta))
         synthesizer = PrivacyPreservingSynthesizer(
-            generator_key="dp-gan",
+            generator_key=generator_key,
             generator_kwargs={**generator_kwargs, "privacy": privacy},
             privacy_mechanism=privacy,
             utility_metrics=utility_metrics,
@@ -99,7 +103,7 @@ def run_epsilon_sweep(
             metric_options=metric_options,
             random_state=random_state,
         )
-        logger.info("[sweep] target epsilon %.2f -> training dp-gan ...", eps)
+        logger.info("[sweep] target epsilon %.2f -> training %s ...", eps, generator_key)
         synthesizer.fit(real_data)
         n = num_rows or len(real_data)
         synthetic = synthesizer.sample(n)
@@ -107,6 +111,7 @@ def run_epsilon_sweep(
         measured = synthesizer.accountant.get_epsilon()
 
         row: dict[str, Any] = {
+            "model": generator_key,
             "target_epsilon": float(eps),
             "measured_epsilon": round(measured, 4) if measured is not None else None,
             "delta": float(delta),
@@ -121,4 +126,4 @@ def run_epsilon_sweep(
                     eps, row["measured_epsilon"], {k: v for k, v in row.items() if k.startswith("util_")})
 
     return SweepResult(rows=rows, utility_metrics=list(utility_metrics),
-                       privacy_metrics=list(privacy_metrics))
+                       privacy_metrics=list(privacy_metrics), generator=generator_key)

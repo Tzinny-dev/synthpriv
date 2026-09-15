@@ -96,8 +96,10 @@ def assert_dp(
     Parameters
     ----------
     generator:
-        Trained generator (``dp-gan``). Must expose ``accounted_epsilon`` and the
-        step counters ``_disc_steps_accounted``/``_disc_steps_actual``.
+        Trained DP-capable generator (``dp-gan`` with DP-SGD step counters
+        ``_disc_steps_accounted``/``_disc_steps_actual``, or ``dp-copula``
+        and similar compositional pure-DP mechanisms without sequential
+        steps — see ``components``/``accounted_epsilon``).
     declared_epsilon:
         Claimed budget (defaults to the generator mechanism's).
     tolerance:

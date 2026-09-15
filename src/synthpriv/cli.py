@@ -150,23 +150,27 @@ def evaluate(real, synthetic, epsilon, delta, output):
 @cli.command()
 @click.option("--data", "-r", "data", required=True, type=click.Path(exists=True, dir_okay=False),
               help="CSV with the real data.")
+@click.option("--generator", "-g", "generator_key", default="dp-gan",
+              type=click.Choice(["dp-gan", "dp-copula"]), show_default=True,
+              help="DP-capable generator to sweep.")
 @click.option("--epsilons", "-e", "epsilons", default="0.1,0.5,1,2,5,50", show_default=True,
               help="Comma-separated DP budgets (50 ~ almost no DP).")
 @click.option("--delta", default=1e-5, type=float, show_default=True, help="DP delta.")
-@click.option("--epochs", default=50, type=int, show_default=True, help="Epochs per point.")
+@click.option("--epochs", default=50, type=int, show_default=True, help="Epochs per point (dp-gan only).")
 @click.option("--rows", "-n", "rows", default=2000, type=int, show_default=True,
               help="Synthetic rows per point.")
 @click.option("--output", "-o", "output", default="sweep_report.html", type=click.Path(dir_okay=False),
               help="Output HTML report.")
-def sweep(data, epsilons, delta, epochs, rows, output):
-    """Train dp-gan with several epsilon and plot the privacy/utility curve."""
+def sweep(data, generator_key, epsilons, delta, epochs, rows, output):
+    """Train a DP generator with several epsilon and plot the privacy/utility curve."""
     df = pd.read_csv(data)
     eps = tuple(float(e.strip()) for e in epsilons.split(",") if e.strip())
     result = run_epsilon_sweep(
         df,
         epsilons=eps,
         delta=delta,
-        generator_kwargs={"epochs": epochs, "batch_size": 256},
+        generator_key=generator_key,
+        generator_kwargs={"epochs": epochs, "batch_size": 256} if generator_key == "dp-gan" else {},
         num_rows=rows,
     )
     result.to_csv(str(Path(output).with_suffix(".csv")))
@@ -181,18 +185,21 @@ def sweep(data, epsilons, delta, epochs, rows, output):
 @cli.command()
 @click.option("--data", "-d", "data", required=True, type=click.Path(exists=True, dir_okay=False),
               help="CSV with the real data.")
+@click.option("--generator", "-g", "dp_generator", default="dp-gan",
+              type=click.Choice(["dp-gan", "dp-copula"]), show_default=True,
+              help="DP generator to benchmark.")
 @click.option("--epsilons", "-e", "epsilons", default="1,2,5,10,50", show_default=True,
-              help="Comma-separated DP budgets for dp-gan.")
+              help="Comma-separated DP budgets.")
 @click.option("--delta", default=1e-5, type=float, show_default=True, help="DP delta.")
 @click.option("--baselines", "-b", "baselines", default="gaussian-copula", show_default=True,
               help="Comma-separated non-DP SDV generators; use 'all' for all of them.")
-@click.option("--epochs", default=100, type=int, show_default=True, help="dp-gan epochs.")
+@click.option("--epochs", default=100, type=int, show_default=True, help="dp-gan epochs (ignored by dp-copula).")
 @click.option("--numeric", default="mode", type=click.Choice(["mode", "uniform"]), show_default=True,
               help="dp-gan numeric encoding: 'mode' (GMM) or 'uniform' (gaussianized).")
 @click.option("--rectify-marginals", "rectify_marginals", is_flag=True,
-              help="Rectify marginals when sampling (requires --numeric uniform).")
+              help="Rectify marginals when sampling (requires --numeric uniform, dp-gan only).")
 @click.option("--ecdf-epsilon", default=None, type=float,
-              help="DP-ECDF marginals budget (requires --numeric uniform). "
+              help="DP-ECDF marginals budget (requires --numeric uniform, dp-gan only). "
                    "The point total reported is training + this value.")
 @click.option("--baseline-epochs", default=0, type=int, show_default=True,
               help="Epochs of the SDV baselines (0 = each generator's default).")
@@ -200,9 +207,12 @@ def sweep(data, epsilons, delta, epochs, rows, output):
               help="Synthetic rows per point (default: same as real).")
 @click.option("--output", "-o", "output", default="benchmark_report.html", type=click.Path(dir_okay=False),
               help="Output HTML report.")
-def benchmark(data, epsilons, delta, baselines, epochs, numeric, rectify_marginals,
+def benchmark(data, dp_generator, epsilons, delta, baselines, epochs, numeric, rectify_marginals,
               ecdf_epsilon, baseline_epochs, rows, output):
-    """Compare dp-gan (several epsilon) vs non-DP SDV generators."""
+    """Compare a DP generator (several epsilon) vs non-DP SDV generators."""
+    if dp_generator == "dp-copula" and (rectify_marginals or ecdf_epsilon is not None
+                                        or numeric != "mode"):
+        raise click.ClickException("--numeric/--rectify-marginals/--ecdf-epsilon are dp-gan only.")
     if ecdf_epsilon is not None and numeric != "uniform":
         raise click.ClickException("--ecdf-epsilon requires --numeric uniform")
     if rectify_marginals and numeric != "uniform":
@@ -212,15 +222,20 @@ def benchmark(data, epsilons, delta, baselines, epochs, numeric, rectify_margina
     bl = ["gaussian-copula", "ctgan", "tvae", "copula-gan"] if baselines.strip() == "all" \
         else tuple(b.strip() for b in baselines.split(",") if b.strip())
     baseline_kwargs = {b: {"epochs": baseline_epochs} for b in bl if baseline_epochs > 0}
+    if dp_generator == "dp-gan":
+        dp_kwargs = {"epochs": epochs, "batch_size": 128,
+                     "numeric": numeric, "rectify_marginals": rectify_marginals,
+                     "ecdf_epsilon": ecdf_epsilon}
+    else:
+        dp_kwargs = {}
 
     result = run_benchmark(
         df,
         epsilons=eps,
         delta=delta,
+        dp_generator=dp_generator,
         baselines=bl,
-        generator_kwargs={"epochs": epochs, "batch_size": 128,
-                          "numeric": numeric, "rectify_marginals": rectify_marginals,
-                          "ecdf_epsilon": ecdf_epsilon},
+        generator_kwargs=dp_kwargs,
         baseline_kwargs=baseline_kwargs,
         num_rows=rows,
     )

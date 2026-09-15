@@ -47,7 +47,7 @@ class EvaluationReport:
 
 
 class PrivacyPreservingSynthesizer:
-    """Orquesta generador + mecanismo de privacidad + metricas.
+    """Orchestrate generator + privacy mechanism + metrics.
 
     Examples
     --------
@@ -89,7 +89,7 @@ class PrivacyPreservingSynthesizer:
         self.metric_options = metric_options or {}
         self.timings: dict[str, float] = {}
 
-    # -- construccion ------------------------------------------------------
+    # -- construction ------------------------------------------------------
     @staticmethod
     def _resolve_generator(generator, key, kwargs, random_state: int) -> BaseSynthesizer:
         kwargs = kwargs or {}
@@ -114,10 +114,10 @@ class PrivacyPreservingSynthesizer:
             raise ValueError(
                 f"The generator '{getattr(generator, 'name', None)}' is not capable of "
                 "training differentially privately. With a DPSGD mechanism use "
-                "generator_key='dp-gan'."
+                "a DP-capable generator ('dp-gan' or 'dp-copula')."
             )
 
-    # -- interfaz principal ------------------------------------------------
+    # -- main interface ------------------------------------------------
     def fit(self, real_data: pd.DataFrame) -> "PrivacyPreservingSynthesizer":
         with timed_block(f"Training {self.generator.name}") as timer:
             self.generator.fit(real_data)
@@ -211,7 +211,7 @@ class PrivacyPreservingSynthesizer:
         }
         return EvaluationReport(data=report_data)
 
-    # -- persistencia del sintetizador completo ----------------------------
+    # -- full synthesizer persistence ----------------------------
     def save_model(self, path: str | Path) -> Path:
         """Persist the trained synthesizer (generator + privacy + metrics).
 

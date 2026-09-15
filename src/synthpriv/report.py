@@ -211,7 +211,7 @@ _SWEEP_TEMPLATE = """<!DOCTYPE html>
   </div>
   {% endfor %}
 </main>
-<footer>Generated with synthpriv. X axis: real accumulated epsilon (RDP accountant).</footer>
+<footer>Generated with synthpriv. X axis: real accumulated epsilon (lower = more private).</footer>
 </body>
 </html>
 """
@@ -331,7 +331,7 @@ _BENCHMARK_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>dp-gan (DP) vs SDV baselines benchmark</h1>
+  <h1>{{ dp_generator }} (DP) vs SDV baselines benchmark</h1>
   <p>Non-DP baselines: {{ baselines|join(", ") }} &middot; Delta: {{ delta }}</p>
 </header>
 <main>
@@ -354,7 +354,7 @@ _BENCHMARK_TEMPLATE = """<!DOCTYPE html>
   </div>
   {% endfor %}
 </main>
-<footer>Generated with synthpriv. X axis: real accumulated epsilon (RDP accountant). Lower epsilon = more private.</footer>
+<footer>Generated with synthpriv. X axis: real accumulated epsilon (lower = more private).</footer>
 </body>
 </html>
 """
@@ -363,7 +363,7 @@ _BENCHMARK_TMPL = Template(_BENCHMARK_TEMPLATE)
 
 
 def render_benchmark_html(result, path: str | Path) -> Path:
-    """Render a ``BenchmarkResult`` to HTML with dp-gan curves and baseline refs."""
+    """Render a ``BenchmarkResult`` to HTML with DP curves and baseline refs."""
     from synthpriv.benchmark import BenchmarkResult
 
     assert isinstance(result, BenchmarkResult), "expected a BenchmarkResult"
@@ -376,8 +376,9 @@ def render_benchmark_html(result, path: str | Path) -> Path:
         c for c in df.columns
         if (c.startswith("util_") or c.startswith("priv_"))
     ]
+    dp_name = getattr(result, "dp_generator", "dp-gan")
     for metric in metric_columns:
-        curve = result.curve("dp-gan", metric)
+        curve = result.curve(dp_name, metric)
         if len(curve) < 2:
             continue
         refs = [
@@ -388,8 +389,8 @@ def render_benchmark_html(result, path: str | Path) -> Path:
         title = metric.replace("util_", "Utility: ").replace("priv_", "Privacy: ")
         charts.append({
             "title": title,
-            "description": "dp-gan (green) vs each non-DP baseline value (dashed). "
-                           "If at high epsilon dp-gan does not reach the baseline, the architecture limits; "
+            "description": f"{dp_name} (green) vs each non-DP baseline value (dashed). "
+                           "If at high epsilon the DP generator does not reach the baseline, the architecture limits; "
                            "the distance at low epsilon is the cost of privacy.",
             "svg_html": _svg_line_chart(
                 [p["x"] for p in curve], [p["y"] for p in curve],
@@ -399,6 +400,7 @@ def render_benchmark_html(result, path: str | Path) -> Path:
 
     html_doc = _BENCHMARK_TMPL.render(
         rows=rows, columns=columns, charts=charts,
+        dp_generator=dp_name,
         baselines=result.baselines,
         delta=result.rows[0].get("delta", "-") if result.rows else "-",
     )

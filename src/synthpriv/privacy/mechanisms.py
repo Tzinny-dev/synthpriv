@@ -1,7 +1,9 @@
 """Differential privacy (DP) mechanisms.
 
-Current phase (0.1): only ``NoPrivacy`` is operational. ``DPSGD`` is a
-declarative configuration; the real Opacus integration arrives in phase 2.
+``NoPrivacy`` gives no formal guarantee (empirical mitigation only).
+``DPSGD`` configures the DP budget: DP-SGD with Opacus (RDP accountant)
+for the ``dp-gan`` generator, or the total pure-DP budget (delta 0,
+Laplace sub-mechanisms) for the ``dp-copula`` generator.
 
 Golden rule: if ``is_dp`` is ``True`` but ``available`` is ``False``, the
 pipeline refuses to proceed or warns clearly so that no guarantees are

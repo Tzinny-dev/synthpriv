@@ -1,13 +1,14 @@
-"""Utility benchmark of dp-gan (DP) vs non-DP SDV generators.
+"""Utility benchmark of DP generators vs non-DP SDV generators.
 
-Trains ``dp-gan`` with several budgets (measured with the RDP accountant) and
+Trains a DP generator (``dp-gan`` with DP-SGD or ``dp-copula`` with pure DP)
+with several budgets (measured epsilon) and
 also trains reference generators without privacy (``ctgan``, ``tvae``,
 ``copula-gan``, ``gaussian-copula``) on the same dataset with the same
 evaluation. Result: a table with the utility of each point and an HTML report
-with the dp-gan privacy/utility curve against the reference lines of each
+with the DP privacy/utility curve against the reference lines of each
 baseline.
 
-Interpretation: if dp-gan at epsilon ~ no-DP (50) gets close to the best
+Interpretation: if the DP generator at epsilon ~ no-DP (50) gets close to the best
 baseline, the architecture is the limitation; the distance at low epsilon is the
 cost of privacy.
 """
@@ -53,18 +54,19 @@ def _metric_direction(name: str, default: str = "higher") -> str:
 class BenchmarkResult:
     """Result of ``run_benchmark``.
 
-    Each ``row`` is a dict with: ``model`` (generator name or "dp-gan"),
-    ``kind`` ("dp-gan" | "baseline"), ``target_epsilon`` and ``measured_epsilon``
-    (dp-gan only), ``util_<metric>``, ``priv_<metric>`` and ``fit_seconds``.
+    Each ``row`` is a dict with: ``model`` (DP generator name or baseline name),
+    ``kind`` ("dp" | "baseline"), ``target_epsilon`` and ``measured_epsilon``
+    (DP points only), ``util_<metric>``, ``priv_<metric>`` and ``fit_seconds``.
     """
 
     rows: list[dict[str, Any]] = field(default_factory=list)
     baselines: list[str] = field(default_factory=list)
     utility_metrics: list[str] = field(default_factory=list)
     privacy_metrics: list[str] = field(default_factory=list)
+    dp_generator: str = "dp-gan"
 
     def dataframe(self) -> pd.DataFrame:
-        """Rows ordered: dp-gan by measured epsilon, then the baselines."""
+        """Rows ordered: DP generator by measured epsilon, then the baselines."""
         df = pd.DataFrame(self.rows)
         if "measured_epsilon" in df.columns:
             df = df.sort_values("measured_epsilon", na_position="last")
@@ -75,7 +77,7 @@ class BenchmarkResult:
         return Path(path)
 
     def save_report(self, path: str | Path) -> Path:
-        """HTML report with the table and the dp-gan vs baselines curves."""
+        """HTML report with the table and the DP vs baselines curves."""
         return render_benchmark_html(self, Path(path))
 
     def curve(self, generator: str, metric: str) -> list[dict[str, float]]:
@@ -97,9 +99,10 @@ class BenchmarkResult:
             return None
         return float(sum(vals) / len(vals))
 
-    def dp_value(self, metric: str, target_epsilon: float | None = None) -> float | None:
-        """dp-gan value at the most private point (or close to ``target_epsilon``)."""
-        pts = self.curve("dp-gan", metric)
+    def dp_value(self, metric: str, target_epsilon: float | None = None,
+                   generator: str | None = None) -> float | None:
+        """DP value at the most private point (or close to ``target_epsilon``)."""
+        pts = self.curve(generator or self.dp_generator, metric)
         if not pts:
             return None
         if target_epsilon is None:
@@ -108,9 +111,9 @@ class BenchmarkResult:
 
     def utility_gap(self, metric: str, baseline: str,
                     target_epsilon: float | None = None) -> float | None:
-        """Cost of privacy: how far dp-gan is from the baseline on a metric.
+        """Cost of privacy: how far the DP generator is from the baseline on a metric.
 
-        Positive = dp-gan loses to the baseline; negative = dp-gan wins.
+        Positive = DP loses to the baseline; negative = DP wins.
         """
         base = self.baseline_value(baseline, metric)
         dp = self.dp_value(metric, target_epsilon=target_epsilon)
@@ -122,11 +125,11 @@ class BenchmarkResult:
 
     def best_dp_point(self, metric: str, threshold: float,
                       lower_is_better: bool | None = None) -> dict[str, float] | None:
-        """Lowest-epsilon dp-gan point whose value meets the ``metric`` threshold."""
+        """Lowest-epsilon DP point whose value meets the ``metric`` threshold."""
         direction = _metric_direction(metric)
         lower = direction == "lower" if lower_is_better is None else lower_is_better
         candidates = [
-            p for p in self.curve("dp-gan", metric)
+            p for p in self.curve(self.dp_generator, metric)
             if ((p["y"] <= threshold) if lower else (p["y"] >= threshold))
         ]
         if not candidates:
@@ -177,6 +180,7 @@ def run_benchmark(
     real_data: pd.DataFrame,
     epsilons: tuple[float, ...] = _DEFAULT_EPSILONS,
     delta: float = 1e-5,
+    dp_generator: str = "dp-gan",
     baselines: tuple[str, ...] = ("gaussian-copula",),
     generator_kwargs: dict[str, Any] | None = None,
     baseline_kwargs: dict[str, dict[str, Any]] | None = None,
@@ -186,8 +190,9 @@ def run_benchmark(
     num_rows: int | None = None,
     random_state: int = 0,
 ) -> BenchmarkResult:
-    """Benchmark dp-gan (at the given ``epsilons``) against non-DP ``baselines``.
+    """Benchmark a DP generator (at the given ``epsilons``) against non-DP ``baselines``.
 
+    ``dp_generator`` must be DP-capable (``dp-gan`` or ``dp-copula``).
     Baselines are trained once (they do not depend on epsilon) with their default
     configuration; for deep generators e.g. pass
     ``baseline_kwargs={"ctgan": {"epochs": 300}}``. Uses the same metrics on all
@@ -201,10 +206,10 @@ def run_benchmark(
 
     for eps in epsilons:
         privacy = DPSGD(epsilon=float(eps), delta=float(delta))
-        logger.info("[benchmark] dp-gan | target epsilon %.2f ...", eps)
+        logger.info("[benchmark] %s | target epsilon %.2f ...", dp_generator, eps)
         row, _ = _fit_and_evaluate(
             real_data,
-            generator_key="dp-gan",
+            generator_key=dp_generator,
             generator_kwargs={**generator_kwargs, "privacy": privacy},
             privacy_mechanism=privacy,
             utility_metrics=utility_metrics,
@@ -214,7 +219,7 @@ def run_benchmark(
             random_state=random_state,
         )
         rows.append({
-            "model": "dp-gan", "kind": "dp-gan",
+            "model": dp_generator, "kind": "dp",
             "target_epsilon": float(eps), "delta": float(delta), **row,
         })
         logger.info("[benchmark]   measured %.4f | util=%s", row["measured_epsilon"],
@@ -249,4 +254,5 @@ def run_benchmark(
         baselines=list(baselines),
         utility_metrics=utility_metrics,
         privacy_metrics=privacy_metrics,
+        dp_generator=dp_generator,
     )

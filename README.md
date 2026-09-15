@@ -83,11 +83,11 @@ synthpriv sample --model demo_model.sz --rows 5000 -o resample.csv
 # evaluate utility and privacy
 synthpriv evaluate --real real.csv --synthetic synthetic.csv --epsilon 8 -o report.html
 
-# epsilon <-> utility sweep
-synthpriv sweep --data real.csv --epsilons "0.1,0.5,1,2,5,50" -o sweep_report.html
+# epsilon <-> utility sweep (dp-gan or dp-copula)
+synthpriv sweep --data real.csv --generator dp-copula --epsilons "0.1,0.5,1,2,5,50" -o sweep_report.html
 
-# benchmark dp-gan vs non-DP SDV generators (curves + utility gap)
-synthpriv benchmark --data real.csv --epsilons "1,5,50" --baselines gaussian-copula -o bench.html
+# benchmark DP generator vs non-DP SDV generators (curves + utility gap)
+synthpriv benchmark --data real.csv --generator dp-copula --epsilons "1,5,50" --baselines gaussian-copula -o bench.html
 
 # audit that a persisted model's DP guarantee is not exceeded
 synthpriv dpcheck --model demo_model.sz --tolerance 0.05
@@ -96,7 +96,7 @@ synthpriv dpcheck --model demo_model.sz --tolerance 0.05
 ### Reproducible demo
 
 ```bash
-.venv/bin/python examples/demo.py [epsilon] [epochs]
+.venv/bin/python examples/demo.py [epsilon] [epochs] [ecdf_epsilon]
 ```
 
 Trains `dp-gan` on a sample dataset, generates, evaluates, persists/reloads,
@@ -206,8 +206,9 @@ is what an MLP DP-GAN learns least on small datasets (see Limitations).
 
 - `test_registry`, `test_generators`, `test_metrics`, `test_pipeline`, `test_cli`
 - `test_dp` (end-to-end DP + minority class coverage)
-- `test_sweep` (ε-utility sweep)
-- `test_benchmark` (dp-gan vs baselines: structure, gaps, reports)
+- `test_dp_matrix` (dp-copula in sweep/benchmark: model/kind/measured epsilon)
+- `test_sweep` (ε-utility sweep, dp-gan/dp-copula)
+- `test_benchmark` (DP vs baselines: structure, gaps, reports)
 - `test_serialization` (persistence/reload)
 - `test_assurance` (DP step integrity and budget)
 
@@ -238,5 +239,5 @@ is what an MLP DP-GAN learns least on small datasets (see Limitations).
 
 Synthetic data **without DP is not guaranteed anonymization**. The report suggests
 which ε level to use and which empirical risk is measured, but formal protection only
-comes from training with a DP mechanism (`DPSGD` + `dp-gan`) and verifying it with
+comes from training with a DP mechanism (`DPSGD` + `dp-gan`/`dp-copula`) and verifying it with
 `assert_dp`.
