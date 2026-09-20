@@ -8,3 +8,9 @@ htmlcov/
 dist/
 build/
 *.html
+# synthpriv artifacts
+*.sz
+*.sz.meta
+report.html
+synthetic.csv
+resample.csv

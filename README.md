@@ -1,5 +1,10 @@
 # synthpriv
 
+[![PyPI](https://img.shields.io/pypi/v/synthpriv)](https://pypi.org/project/synthpriv/)
+[![Python](https://img.shields.io/pypi/pyversions/synthpriv)](https://pypi.org/project/synthpriv/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/Tzinny-dev/synthpriv/actions/workflows/tests.yml/badge.svg)](https://github.com/Tzinny-dev/synthpriv/actions/workflows/tests.yml)
+
 **Tabular data synthesis preserving differential privacy**: generators
 (`dp-gan` with DP-SGD, `dp-copula` with pure DP), DP marginal ECDFs, benchmark and
 budget sweep, and an HTML privacy/utility report. Built on
@@ -31,9 +36,19 @@ The project evolves in cumulative phases, each with its own test suite and commi
 ## Installation
 
 ```bash
+pip install synthpriv
+```
+
+For development (editable install + test/build tooling):
+
+```bash
 python -m venv .venv
 .venv/bin/pip install -e ".[dev]"   # (uses CUDA if available)
 ```
+
+> Note: `dp-gan` pulls `torch` via Opacus. The default PyPI install is
+> CPU-only; install a CUDA-enabled torch build separately if you need GPU
+> training (see [pytorch.org](https://pytorch.org/get-started/locally/)).
 
 Dependencies: Python ≥ 3.10, numpy, pandas, scipy, scikit-learn, SDV < 2, SDMetrics,
 anonymeter, Opacus, click, Jinja2.
