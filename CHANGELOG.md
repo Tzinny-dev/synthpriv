@@ -3,6 +3,27 @@
 All notable changes to `synthpriv` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [SemVer](https://semver.org/).
 
+## [0.2.1] - 2026-09-21
+
+Packaging and release-pipeline polish. No changes to the public API.
+
+### Added
+- Single-source version: `pyproject.toml` reads `version` dynamically from
+  `src/synthpriv/__init__.py` (`importlib.metadata.version("synthpriv")`
+  compatible).
+- `publish.yml` workflow: tag `v*` → build → tag/version guard → PyPI
+  (Trusted Publisher OIDC + PEP 740 attestations) → GitHub release with
+  artifacts. The release is only created after a successful PyPI publish.
+- `MANIFEST.in`: sdist now ships `CHANGELOG.md`, `examples/` and `tests/`.
+- CI: test matrix 3.10/3.11/3.12 + `package` job (build, `twine check`,
+  wheel smoke test).
+
+### Changed
+- PEP 639 metadata: `license-files` explicitly declared; `Project-URL`s
+  `Documentation` and `Changelog` added (side links on PyPI).
+- README: PyPI/Python/License/CI badges; `pip install synthpriv` quick install;
+  CUDA/torch note.
+
 ## [0.2.0] - 2026-09-15
 
 Beta validated: clean PyPI install, functional smoke (`dp-gan`/`dp-copula`),
