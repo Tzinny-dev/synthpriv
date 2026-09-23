@@ -10,6 +10,12 @@ All notable changes to `synthpriv` are documented here. Format follows
   polish commits (`c19fc3c`, `58a144a`).
 - `CHANGELOG.md`: `[Unreleased]` section and Keep-a-Changelog comparison
   link definitions.
+- Documentation site: Sphinx + Furo + autodoc/Napoleon (numpydoc-style
+  docstrings) + MyST, with quickstart, privacy, sweep/benchmark, CLI and
+  API reference pages; `docs.yml` builds with `-W` (warnings = errors) and
+  deploys to GitHub Pages via `actions/deploy-pages`; `docs` extra; the
+  `Documentation` project URL now points to
+  https://tzinny-dev.github.io/synthpriv/.
 
 ### Changed
 - `publish.yml` hardening:

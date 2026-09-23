@@ -51,22 +51,19 @@ class PrivacyPreservingSynthesizer:
 
     Examples
     --------
-    ```python
-    from synthpriv import PrivacyPreservingSynthesizer
-    from synthpriv.privacy import NoPrivacy
-
-    synth = PrivacyPreservingSynthesizer(
-        generator_key="ctgan",
-        generator_kwargs={"epochs": 100},
-        privacy_mechanism=NoPrivacy(),
-        utility_metrics=["ks_test", "correlation_mae", "ml_utility"],
-        privacy_metrics=["nndr", "mia_auc"],
-    )
-    synth.fit(df)
-    synthetic = synth.sample(5000)
-    report = synth.evaluate(df, synthetic)
-    report.save("report.html")
-    ```
+    >>> from synthpriv import PrivacyPreservingSynthesizer
+    >>> from synthpriv.privacy import NoPrivacy
+    >>> synth = PrivacyPreservingSynthesizer(
+    ...     generator_key="ctgan",
+    ...     generator_kwargs={"epochs": 100},
+    ...     privacy_mechanism=NoPrivacy(),
+    ...     utility_metrics=["ks_test", "correlation_mae", "ml_utility"],
+    ...     privacy_metrics=["nndr", "mia_auc"],
+    ... )
+    >>> synth.fit(df)
+    >>> synthetic = synth.sample(5000)
+    >>> report = synth.evaluate(df, synthetic)
+    >>> report.save("report.html")
     """
 
     def __init__(

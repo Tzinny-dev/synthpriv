@@ -97,6 +97,7 @@ class ModeEncoder:
     """Higher-utility tabular encoder, inspired by CTGAN.
 
     Numerics: two normalization modes.
+
     - ``mode`` (mode-specific): each value is assigned to the most probable mode
       of a Gaussian Mixture (per column), normalized within the mode and encoded
       together with a mode one-hot. Captures multimodal distributions that the

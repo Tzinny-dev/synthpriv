@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/Tzinny-dev/synthpriv/actions/workflows/tests.yml/badge.svg)](https://github.com/Tzinny-dev/synthpriv/actions/workflows/tests.yml)
 [![Publish](https://github.com/Tzinny-dev/synthpriv/actions/workflows/publish.yml/badge.svg)](https://github.com/Tzinny-dev/synthpriv/actions/workflows/publish.yml)
+[![Docs](https://img.shields.io/badge/docs-sphinx%20%2B%20furo-2ea443)](https://tzinny-dev.github.io/synthpriv/)
 
 **Tabular data synthesis preserving differential privacy**: generators
 (`dp-gan` with DP-SGD, `dp-copula` with pure DP), DP marginal ECDFs, benchmark and

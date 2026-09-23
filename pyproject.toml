@@ -51,10 +51,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "pytest-cov>=4.0", "build>=1.0", "twine>=5.0"]
+docs = ["sphinx>=7,<9", "furo>=2024.1.29", "myst-parser>=3.0", "sphinx-copybutton>=0.5.2"]
 
 [project.urls]
 Homepage = "https://github.com/Tzinny-dev/synthpriv"
-Documentation = "https://github.com/Tzinny-dev/synthpriv#readme"
+Documentation = "https://tzinny-dev.github.io/synthpriv/"
 Changelog = "https://github.com/Tzinny-dev/synthpriv/blob/main/CHANGELOG.md"
 Repository = "https://github.com/Tzinny-dev/synthpriv"
 Issues = "https://github.com/Tzinny-dev/synthpriv/issues"
