@@ -4,6 +4,7 @@
 [![Python](https://img.shields.io/pypi/pyversions/synthpriv)](https://pypi.org/project/synthpriv/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/Tzinny-dev/synthpriv/actions/workflows/tests.yml/badge.svg)](https://github.com/Tzinny-dev/synthpriv/actions/workflows/tests.yml)
+[![Publish](https://github.com/Tzinny-dev/synthpriv/actions/workflows/publish.yml/badge.svg)](https://github.com/Tzinny-dev/synthpriv/actions/workflows/publish.yml)
 
 **Tabular data synthesis preserving differential privacy**: generators
 (`dp-gan` with DP-SGD, `dp-copula` with pure DP), DP marginal ECDFs, benchmark and
@@ -32,6 +33,8 @@ The project evolves in cumulative phases, each with its own test suite and commi
 | 12 | `d1296ad` | `split_budget`: split DP budget between training and marginals |
 | — | `84f4fef` | Fix: HTML report without DP-ECDF (`ecdf_epsilon`/`total_epsilon` keys always present) |
 | — | `b939af3` | Build: PyPI publication prep (MIT license, PEP 639/URIs/classifiers, dev extras build+twine, README intro) |
+| — | `c19fc3c` | Build/CI: PEP 639 `license-files`, docs/changelog URLs, MANIFEST.in, badges + `pip install`, CI matrix 3.10–3.12 + package job, publish workflow (Trusted Publisher + attestations) |
+| — | `58a144a` | Release: tag↔version guard in `publish.yml`, GitHub release after PyPI publish, dynamic version single-source, bump 0.2.1 |
 
 ## Installation
 
@@ -51,7 +54,7 @@ python -m venv .venv
 > training (see [pytorch.org](https://pytorch.org/get-started/locally/)).
 
 Dependencies: Python ≥ 3.10, numpy, pandas, scipy, scikit-learn, SDV < 2, SDMetrics,
-anonymeter, Opacus, click, Jinja2.
+anonymeter, Opacus, click, Jinja2. Tested on CPython 3.10–3.13.
 
 ## Quick start
 

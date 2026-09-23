@@ -5,7 +5,26 @@ on:
     tags: ["v*"]
 
 jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Fast tests
+        run: python -m pytest -q
+
   build:
+    needs: tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +53,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip build twine
           python -m build
-          python -m twine check dist/*
+          python -m twine check --strict dist/*
       - uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -60,9 +79,32 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           attestations: true
+          skip-existing: true # idempotent on workflow re-runs
+
+  verify-pypi:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install from PyPI (with propagation retries) and smoke test
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for i in $(seq 1 20); do
+            if python -m pip install "synthpriv==$VERSION"; then
+              break
+            fi
+            echo "attempt $i failed; waiting for PyPI propagation..."
+            sleep 30
+          done
+          python -c "import synthpriv, importlib.metadata as m; \
+            v=m.version('synthpriv'); assert v=='$VERSION', v; \
+            print('installed', v)"
+          synthpriv --help
 
   github-release:
-    needs: publish
+    needs: verify-pypi
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -72,10 +114,15 @@ jobs:
         with:
           name: dist
           path: dist/
-      - name: Create GitHub release with artifacts
+      - name: Create GitHub release with artifacts (idempotent)
         run: |
-          gh release create "${GITHUB_REF_NAME}" dist/*.whl dist/*.tar.gz \
-            --title "synthpriv ${GITHUB_REF_NAME#v}" \
-            --generate-notes
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "Release ${GITHUB_REF_NAME} already exists; uploading assets (--clobber)."
+            gh release upload "${GITHUB_REF_NAME}" dist/*.whl dist/*.tar.gz --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" dist/*.whl dist/*.tar.gz \
+              --title "synthpriv ${GITHUB_REF_NAME#v}" \
+              --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

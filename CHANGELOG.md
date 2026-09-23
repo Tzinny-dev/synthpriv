@@ -3,6 +3,27 @@
 All notable changes to `synthpriv` are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Python 3.13: CI test matrix and trove classifier (SDV/SDMetrics declare
+  3.13 support; torch ships 3.13 wheels).
+- README: publish-workflow badge; phase-table rows for the publication
+  polish commits (`c19fc3c`, `58a144a`).
+- `CHANGELOG.md`: `[Unreleased]` section and Keep-a-Changelog comparison
+  link definitions.
+
+### Changed
+- `publish.yml` hardening:
+  - **tests gate**: the tag pipeline now runs the full test matrix before
+    `build`/`publish` (a tag no longer publishes untested code).
+  - **idempotent re-runs**: `skip-existing` on the PyPI upload and
+    `gh release view || create` (upload `--clobber`) for the GitHub release.
+  - **post-publish verification**: new `verify-pypi` job installs
+    `synthpriv==<version>` from real PyPI (with propagation retries) and
+    checks `importlib.metadata` version + `synthpriv --help`.
+  - `twine check --strict`.
+
 ## [0.2.1] - 2026-09-21
 
 Packaging and release-pipeline polish. No changes to the public API.
@@ -62,3 +83,9 @@ Beta pre-release: public API frozen for the `0.2.x` line.
 Alpha: tabular synthesis with differential privacy (`dp-gan` DP-SGD,
 `dp-copula` pure DP), DP marginal ECDFs, budget split, benchmark/sweep, HTML
 report, CLI, `assert_dp`, persistence.
+
+[Unreleased]: https://github.com/Tzinny-dev/synthpriv/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/Tzinny-dev/synthpriv/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/Tzinny-dev/synthpriv/compare/v0.2.0b1...v0.2.0
+[0.2.0b1]: https://github.com/Tzinny-dev/synthpriv/compare/v0.1.0...v0.2.0b1
+[0.1.0]: https://github.com/Tzinny-dev/synthpriv/releases/tag/v0.1.0
