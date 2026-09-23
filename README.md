@@ -53,8 +53,9 @@ python -m venv .venv
 > CPU-only; install a CUDA-enabled torch build separately if you need GPU
 > training (see [pytorch.org](https://pytorch.org/get-started/locally/)).
 
-Dependencies: Python ≥ 3.10, numpy, pandas, scipy, scikit-learn, SDV < 2, SDMetrics,
-anonymeter, Opacus, click, Jinja2. Tested on CPython 3.10–3.13.
+Dependencies: Python 3.10–3.12, numpy, pandas, scipy, scikit-learn, SDV < 2, SDMetrics,
+anonymeter, Opacus, click, Jinja2. (Python 3.13 unsupported for now: `anonymeter`
+pins `numpy<1.27`, which ships no 3.13 wheels — tracked upstream.)
 
 ## Quick start
 

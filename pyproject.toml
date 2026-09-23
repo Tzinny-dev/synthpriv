@@ -8,7 +8,9 @@ description = "Tabular data synthesis preserving differential privacy"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE*"]
-requires-python = ">=3.10"
+# <3.13: anonymeter 1.1.0 pins numpy<1.27, which ships no 3.13 wheels
+# (sdv/sdmetrics support 3.13; drop the cap when anonymeter relaxes the pin).
+requires-python = ">=3.10,<3.13"
 dynamic = ["version"]
 authors = [
     { name = "Carlos", email = "921charly@gmail.com" },
@@ -31,7 +33,6 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]

@@ -6,8 +6,6 @@ All notable changes to `synthpriv` are documented here. Format follows
 ## [Unreleased]
 
 ### Added
-- Python 3.13: CI test matrix and trove classifier (SDV/SDMetrics declare
-  3.13 support; torch ships 3.13 wheels).
 - README: publish-workflow badge; phase-table rows for the publication
   polish commits (`c19fc3c`, `58a144a`).
 - `CHANGELOG.md`: `[Unreleased]` section and Keep-a-Changelog comparison
@@ -23,6 +21,15 @@ All notable changes to `synthpriv` are documented here. Format follows
     `synthpriv==<version>` from real PyPI (with propagation retries) and
     checks `importlib.metadata` version + `synthpriv --help`.
   - `twine check --strict`.
+
+### Known limitations
+- **Python 3.13 unsupported**: `anonymeter 1.1.0` (latest) pins
+  `numpy>=1.22,<1.27`, and numpy <1.27 ships no 3.13 wheels, so
+  installation on 3.13 fails with `ResolutionImpossible` (CI run
+  `35905206866`; `sdv`/`sdmetrics` themselves already support 3.13).
+  `requires-python` is now capped to `>=3.10,<3.13` (effective from the
+  next release) so `pip` fails fast with a clear message; drop the cap
+  when anonymeter relaxes the numpy pin.
 
 ## [0.2.1] - 2026-09-21
 
