@@ -96,6 +96,7 @@ def main() -> int:
                         help="build only (no branch commit, no push)")
     args = parser.parse_args()
 
+    _sync_branch(args.branch, args.remote)
     _write_versions_file(args.version, args.title, args.alias, args.branch)
 
     env = {
@@ -111,8 +112,6 @@ def main() -> int:
     if args.dry_run:
         subprocess.run(build, check=True, env=env, cwd=REPO_ROOT)
         return 0
-
-    _sync_branch(args.branch, args.remote)
 
     cfg = {"site_dir": str(SITE_DIR), "use_directory_urls": True}
     # `copy` aliases: the deployed Pages artifact must work without symlinks.
