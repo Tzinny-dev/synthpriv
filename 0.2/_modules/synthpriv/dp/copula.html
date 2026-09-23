@@ -1,0 +1,554 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><link rel="index" title="Index" href="../../../genindex.html"><link rel="search" title="Search" href="../../../search.html">
+        <link rel="canonical" href="https://tzinny-dev.github.io/synthpriv/_modules/synthpriv/dp/copula.html">
+
+    <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
+        <title>synthpriv.dp.copula - synthpriv 0.2.1</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../../index.html"><div class="brand">synthpriv 0.2.1</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><div class="sidebar-scroll"><a class="sidebar-brand" href="../../../index.html">
+  
+  <span class="sidebar-brand-text">synthpriv 0.2.1</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">User guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../quickstart.html">Quick start</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../privacy.html">Differential privacy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../benchmark.html">Sweep and benchmark</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cli.html">Command-line interface</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api.html">API reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelog.html">Changelog</a></li>
+</ul>
+
+</div>
+
+<div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Versions</span></p>
+  <ul>
+    <li class="toctree-l1 current">
+      <span class="current-version">0.2 (this version)</span>
+    </li>
+  </ul>
+</div>
+
+</div>
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <h1>Source code for synthpriv.dp.copula</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Gaussian copula with differential privacy (``dp-copula``).</span>
+
+<span class="sd">Fully parametric, fast model that attacks the ``dp-gan`` weak spot: the</span>
+<span class="sd">dependence structure. The guarantee is **pure DP** (delta 0) because all</span>
+<span class="sd">sub-mechanisms are Laplace (no RDP Gaussian noise):</span>
+
+<span class="sd">1. **Marginals**: ``DPEcdf`` per numeric column (Laplace histogram, parallel</span>
+<span class="sd">   composition by bins; budget ``margins_fraction * epsilon`` split sequentially</span>
+<span class="sd">   across columns).</span>
+<span class="sd">2. **Dependence (copula)**: over the real Gaussians ``z = Phi^-1(rank)``</span>
+<span class="sd">   (deterministic transformation from n, with values bounded by</span>
+<span class="sd">   ``B = Phi^-1((n-0.5)/n)``, a public quantity), the sample covariance is</span>
+<span class="sd">   perturbed entry-wise with Laplace noise of scale ``(B^2 / n) / epsilon_entry``.</span>
+<span class="sd">   Sensitivity per entry &lt;= B^2/n (removing a row changes one per-row term of the</span>
+<span class="sd">   sum). As entries share the data, the composition is **sequential** across the</span>
+<span class="sd">   ``d(d-1)/2`` correlations: ``epsilon_entry = corr_fraction * epsilon /</span>
+<span class="sd">   n_entries``. It is then projected to the correlation sphere (PSD + diagonal 1).</span>
+<span class="sd">3. **Categoricals**: Laplace frequencies (parallel composition across</span>
+<span class="sd">   categories, sequential across columns; budget the rest of ``epsilon``).</span>
+
+<span class="sd">Sampling is post-processing of these DP outputs: private Gaussian copula</span>
+<span class="sd">``N(0, R)`` -&gt; ``u = Phi(z)`` -&gt; ``DPEcdf.quantile(u)`` and private</span>
+<span class="sd">multinomials. Dependence is the main gain over independent marginals, and its</span>
+<span class="sd">cost is total: the budget is split between marginals, copula and categoricals</span>
+<span class="sd">according to the configurable fractions.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">norm</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">synthpriv.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseSynthesizer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">synthpriv.core.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">register_generator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">synthpriv.privacy.dpecdf</span><span class="w"> </span><span class="kn">import</span> <span class="n">DPEcdf</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">synthpriv.privacy.mechanisms</span><span class="w"> </span><span class="kn">import</span> <span class="n">DPSGD</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">synthpriv.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_logger</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">(</span><span class="s2">"dp"</span><span class="p">)</span>
+
+<span class="n">_EPS</span> <span class="o">=</span> <span class="mf">1e-12</span>
+
+
+<div class="viewcode-block" id="DPCopulaGenerator">
+<a class="viewcode-back" href="../../../api.html#synthpriv.dp.copula.DPCopulaGenerator">[docs]</a>
+<span class="nd">@register_generator</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">"dp-copula"</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">"Gaussian copula with pure differential privacy (laplace): "</span>
+                <span class="s2">"DP-ECDF marginals + private correlation with PSD projection."</span><span class="p">,</span>
+    <span class="n">supports</span><span class="o">=</span><span class="p">(</span><span class="s2">"tabular"</span><span class="p">,),</span>
+<span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DPCopulaGenerator</span><span class="p">(</span><span class="n">BaseSynthesizer</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Differentially private Gaussian copula (parametric and fast).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    privacy:</span>
+<span class="sd">        ``DPSGD`` mechanism with the total ``epsilon`` budget. For this</span>
+<span class="sd">        generator DP is pure (delta 0): the mechanism's ``delta`` only applies</span>
+<span class="sd">        to the ``dp-gan``'s DP-SGD.</span>
+<span class="sd">    margins_fraction:</span>
+<span class="sd">        Fraction of ``epsilon`` dedicated to the numeric marginals (split</span>
+<span class="sd">        equally across columns).</span>
+<span class="sd">    corr_fraction:</span>
+<span class="sd">        Fraction dedicated to the copula's correlation matrix. With categorical</span>
+<span class="sd">        columns, the rest goes to their frequencies.</span>
+<span class="sd">    bins/bounds:</span>
+<span class="sd">        Grid and public support of the ``DPEcdf``s (see ``DPEcdf``).</span>
+<span class="sd">    """</span>
+
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">"dp-copula"</span>
+    <span class="n">dp_capable</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">privacy</span><span class="p">:</span> <span class="n">DPSGD</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">margins_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span><span class="p">,</span>
+        <span class="n">corr_fraction</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span><span class="p">,</span>
+        <span class="n">bins</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+        <span class="n">bounds</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">privacy</span> <span class="o">=</span> <span class="n">privacy</span> <span class="ow">or</span> <span class="n">DPSGD</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">privacy</span><span class="o">.</span><span class="n">is_dp</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"dp-copula requires a DPSGD mechanism with epsilon&gt;0"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">margins_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">corr_fraction</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"margins_fraction and corr_fraction must be in (0, 1)"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">margins_fraction</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">margins_fraction</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">corr_fraction</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">corr_fraction</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bins</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">bins</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">bounds</span> <span class="ow">or</span> <span class="p">{})</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span> <span class="o">=</span> <span class="p">{</span><span class="n">c</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">random_state</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fitted</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">accounted_epsilon</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cat_columns</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ecdfs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">DPEcdf</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_corr</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cat_probs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+<div class="viewcode-block" id="DPCopulaGenerator.fit">
+<a class="viewcode-back" href="../../../api.html#synthpriv.dp.copula.DPCopulaGenerator.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">real_data</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"DPCopulaGenerator"</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">real_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">num_mask</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">select_dtypes</span><span class="p">(</span><span class="n">include</span><span class="o">=</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">number</span><span class="p">])</span><span class="o">.</span><span class="n">columns</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">num_mask</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cat_columns</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">num_mask</span><span class="p">]</span>
+        <span class="n">n_num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span><span class="p">)</span>
+        <span class="n">n_cat</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cat_columns</span><span class="p">)</span>
+        <span class="n">eps_total</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">privacy</span><span class="o">.</span><span class="n">epsilon</span><span class="p">)</span>
+        <span class="n">margins_total</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">margins_fraction</span> <span class="o">*</span> <span class="n">eps_total</span>
+        <span class="n">corr_total</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">corr_fraction</span> <span class="o">*</span> <span class="n">eps_total</span>
+        <span class="n">cat_share</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">margins_fraction</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">corr_fraction</span>
+        <span class="k">if</span> <span class="n">n_cat</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">corr_total</span> <span class="o">=</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">margins_fraction</span><span class="p">)</span> <span class="o">*</span> <span class="n">eps_total</span>  <span class="c1"># everything to the copula</span>
+            <span class="n">cat_share</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">components</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"margins"</span><span class="p">:</span> <span class="n">margins_total</span><span class="p">,</span> <span class="s2">"corr"</span><span class="p">:</span> <span class="n">corr_total</span><span class="p">,</span>
+                           <span class="s2">"cats"</span><span class="p">:</span> <span class="n">cat_share</span> <span class="o">*</span> <span class="n">eps_total</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">accounted_epsilon</span> <span class="o">=</span> <span class="n">eps_total</span>
+
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="n">B</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">((</span><span class="n">n</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span><span class="p">))</span> <span class="k">if</span> <span class="n">n</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="k">else</span> <span class="mf">1.0</span>  <span class="c1"># public bound of |z|</span>
+        <span class="n">G</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">n</span><span class="p">,</span> <span class="n">n_num</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_ecdfs</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">col_eps</span> <span class="o">=</span> <span class="n">margins_total</span> <span class="o">/</span> <span class="n">n_num</span> <span class="k">if</span> <span class="n">n_num</span> <span class="k">else</span> <span class="mf">0.0</span>
+        <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span><span class="p">):</span>
+            <span class="n">v</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span>
+            <span class="n">ecdf</span> <span class="o">=</span> <span class="n">DPEcdf</span><span class="p">(</span><span class="n">epsilon</span><span class="o">=</span><span class="n">col_eps</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="p">,</span>
+                          <span class="n">bounds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">col</span><span class="p">))</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">rng</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_rng</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_ecdfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ecdf</span><span class="p">)</span>
+            <span class="n">u</span> <span class="o">=</span> <span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">argsort</span><span class="p">()</span><span class="o">.</span><span class="n">argsort</span><span class="p">()</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>  <span class="c1"># normalized rank (0,1)</span>
+            <span class="n">G</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">ppf</span><span class="p">(</span><span class="n">u</span><span class="p">),</span> <span class="o">-</span><span class="n">B</span><span class="p">,</span> <span class="n">B</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">n_num</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">S</span> <span class="o">=</span> <span class="p">(</span><span class="n">G</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="n">G</span><span class="p">)</span> <span class="o">/</span> <span class="n">n</span>
+            <span class="n">entries</span> <span class="o">=</span> <span class="n">n_num</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_num</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
+            <span class="n">eps_entry</span> <span class="o">=</span> <span class="n">corr_total</span> <span class="o">/</span> <span class="n">entries</span> <span class="k">if</span> <span class="n">entries</span> <span class="k">else</span> <span class="n">corr_total</span>
+            <span class="n">scale</span> <span class="o">=</span> <span class="p">(</span><span class="n">B</span> <span class="o">*</span> <span class="n">B</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span> <span class="o">/</span> <span class="n">eps_entry</span>
+            <span class="n">off</span> <span class="o">=</span> <span class="n">S</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_num</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">n_num</span><span class="p">):</span>
+                    <span class="n">off</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">S</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span><span class="o">.</span><span class="n">laplace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">scale</span><span class="p">)</span>
+                    <span class="n">off</span><span class="p">[</span><span class="n">k</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">off</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">k</span><span class="p">]</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">off</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_corr</span> <span class="o">=</span> <span class="n">_project_to_correlation</span><span class="p">(</span><span class="n">off</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_corr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cat_probs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">n_cat</span> <span class="ow">and</span> <span class="n">cat_share</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">col_eps_cat</span> <span class="o">=</span> <span class="n">cat_share</span> <span class="o">*</span> <span class="n">eps_total</span> <span class="o">/</span> <span class="n">n_cat</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cat_columns</span><span class="p">:</span>
+                <span class="n">cats</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+                <span class="n">counts</span> <span class="o">=</span> <span class="n">cats</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
+                <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+                <span class="n">cnt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">counts</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+                <span class="n">noisy</span> <span class="o">=</span> <span class="n">cnt</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span><span class="o">.</span><span class="n">laplace</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="n">col_eps_cat</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">))</span>
+                <span class="n">probs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">noisy</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="n">total</span> <span class="o">=</span> <span class="n">probs</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_cat_probs</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">probs</span> <span class="o">/</span> <span class="n">total</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fitted</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"dp-copula fitted: n=</span><span class="si">%d</span><span class="s2">, </span><span class="si">%d</span><span class="s2"> numeric, </span><span class="si">%d</span><span class="s2"> categorical(s); "</span>
+                    <span class="s2">"total epsilon </span><span class="si">%.3f</span><span class="s2"> = marginals </span><span class="si">%.3f</span><span class="s2"> + copula </span><span class="si">%.3f</span><span class="s2"> + categoricals </span><span class="si">%.3f</span><span class="s2">"</span><span class="p">,</span>
+                    <span class="n">n</span><span class="p">,</span> <span class="n">n_num</span><span class="p">,</span> <span class="n">n_cat</span><span class="p">,</span> <span class="n">eps_total</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">"margins"</span><span class="p">],</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">"corr"</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">[</span><span class="s2">"cats"</span><span class="p">])</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+<div class="viewcode-block" id="DPCopulaGenerator.sample">
+<a class="viewcode-back" href="../../../api.html#synthpriv.dp.copula.DPCopulaGenerator.sample">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">sample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_rows</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1000</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fitted</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"DPCopulaGenerator is not fitted: call fit(real_data)."</span><span class="p">)</span>
+        <span class="n">n</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">num_rows</span><span class="p">)</span>
+        <span class="n">frame</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span><span class="p">:</span>
+            <span class="n">n_num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span><span class="p">)</span>
+            <span class="n">Z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span><span class="o">.</span><span class="n">multivariate_normal</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_num</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">_corr</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">)</span>
+            <span class="n">U</span> <span class="o">=</span> <span class="n">norm</span><span class="o">.</span><span class="n">cdf</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">col</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span><span class="p">):</span>
+                <span class="n">frame</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ecdfs</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">quantile</span><span class="p">(</span><span class="n">U</span><span class="p">[:,</span> <span class="n">j</span><span class="p">])</span>
+        <span class="k">for</span> <span class="n">col</span><span class="p">,</span> <span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">probs</span><span class="p">)</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat_probs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">keys</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="n">n</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="n">probs</span><span class="p">)</span>
+            <span class="n">frame</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">keys</span><span class="p">)[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">cat_columns</span><span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+<div class="viewcode-block" id="DPCopulaGenerator.get_params">
+<a class="viewcode-back" href="../../../api.html#synthpriv.dp.copula.DPCopulaGenerator.get_params">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"margins_fraction"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">margins_fraction</span><span class="p">,</span>
+            <span class="s2">"corr_fraction"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">corr_fraction</span><span class="p">,</span>
+            <span class="s2">"bins"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bins</span><span class="p">,</span>
+            <span class="s2">"bounds"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">bounds</span><span class="p">,</span>
+            <span class="s2">"random_state"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span><span class="p">),</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="DPCopulaGenerator.save">
+<a class="viewcode-back" href="../../../api.html#synthpriv.dp.copula.DPCopulaGenerator.save">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"version"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">"class"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="s2">"name"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+            <span class="s2">"fitted"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fitted</span><span class="p">,</span>
+            <span class="s2">"params"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_params</span><span class="p">(),</span>
+            <span class="s2">"privacy"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">privacy</span><span class="p">,</span>
+            <span class="s2">"accounted_epsilon"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">accounted_epsilon</span><span class="p">,</span>
+            <span class="s2">"components"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">components</span><span class="p">,</span>
+            <span class="s2">"num_columns"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_columns</span><span class="p">,</span>
+            <span class="s2">"cat_columns"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">cat_columns</span><span class="p">,</span>
+            <span class="s2">"ecdfs"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_ecdfs</span><span class="p">,</span>
+            <span class="s2">"corr"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_corr</span><span class="p">,</span>
+            <span class="s2">"cat_probs"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cat_probs</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">path</span></div>
+
+
+<div class="viewcode-block" id="DPCopulaGenerator.load">
+<a class="viewcode-back" href="../../../api.html#synthpriv.dp.copula.DPCopulaGenerator.load">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span> <span class="o">**</span><span class="n">overrides</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"DPCopulaGenerator"</span><span class="p">:</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">map_location</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">,</span> <span class="n">weights_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"params"</span><span class="p">,</span> <span class="p">{}))</span>
+        <span class="n">params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">overrides</span><span class="p">)</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">privacy</span><span class="o">=</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"privacy"</span><span class="p">),</span> <span class="o">**</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"random_state"</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">obj</span><span class="o">.</span><span class="n">_seed</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_fitted</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fitted"</span><span class="p">))</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">accounted_epsilon</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"accounted_epsilon"</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">components</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"components"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">num_columns</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"num_columns"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">cat_columns</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"cat_columns"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_ecdfs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"ecdfs"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_corr</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"corr"</span><span class="p">)</span>
+        <span class="n">obj</span><span class="o">.</span><span class="n">_cat_probs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"cat_probs"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span>
+        <span class="k">return</span> <span class="n">obj</span></div>
+</div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_project_to_correlation</span><span class="p">(</span><span class="n">S</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Project a symmetric matrix to the correlation sphere (PSD, diag 1)."""</span>
+    <span class="n">S</span> <span class="o">=</span> <span class="p">(</span><span class="n">S</span> <span class="o">+</span> <span class="n">S</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">/</span> <span class="mf">2.0</span>
+    <span class="n">eigvals</span><span class="p">,</span> <span class="n">eigvecs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">S</span><span class="p">)</span>
+    <span class="n">eigvals</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">eigvals</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="n">P</span> <span class="o">=</span> <span class="p">(</span><span class="n">eigvecs</span> <span class="o">*</span> <span class="n">eigvals</span><span class="p">)</span> <span class="o">@</span> <span class="n">eigvecs</span><span class="o">.</span><span class="n">T</span>
+    <span class="n">d</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">P</span><span class="p">),</span> <span class="n">_EPS</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+    <span class="n">R</span> <span class="o">=</span> <span class="n">P</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">outer</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">d</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">R</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+</pre></div>
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 2026, Carlos
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer no-toc">
+      
+      
+      
+    </aside>
+  </div>
+</div><script src="../../../_static/documentation_options.js?v=37f418d5"></script>
+    <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../../_static/copybutton.js?v=f281be69"></script>
+    </body>
+</html>
