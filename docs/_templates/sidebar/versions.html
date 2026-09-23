@@ -1,0 +1,18 @@
+{# Version selector rendered from docs/_versions.json (written by
+   docs/deploy_version.py before the Sphinx build). #}
+{% if versions %}
+<div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Versions</span></p>
+  <ul>
+    {%- for item in versions %}
+    <li class="toctree-l1{% if item.current %} current{% endif %}">
+      {%- if item.current %}
+      <span class="current-version">{{ item.label }} (this version)</span>
+      {%- else %}
+      <a class="reference internal" href="{{ item.url }}">{{ item.label }}</a>
+      {%- endif %}
+    </li>
+    {%- endfor %}
+  </ul>
+</div>
+{% endif %}

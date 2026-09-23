@@ -8,7 +8,9 @@ htmlcov/
 dist/
 build/
 docs/_build/
+docs/_versions.json
 *.html
+!docs/_templates/**/*.html
 # synthpriv artifacts
 *.sz
 *.sz.meta

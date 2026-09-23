@@ -16,6 +16,14 @@ All notable changes to `synthpriv` are documented here. Format follows
   deploys to GitHub Pages via `actions/deploy-pages`; `docs` extra; the
   `Documentation` project URL now points to
   https://tzinny-dev.github.io/synthpriv/.
+- Versioned documentation with **mike**: tag pushes deploy the `X.Y` docs
+  line (alias `latest`, site root redirected to it) and `main` pushes deploy
+  `dev`; the Sphinx build renders a version selector in Furo's sidebar from
+  `versions.json` (`docs/deploy_version.py`, `DOCS_BASE_URL`/`DOCS_VERSION`).
+- Custom-domain ready Pages deployment: the URLs and Sphinx `html_baseurl`
+  come from `actions/configure-pages` (`base_url`), so moving the site to
+  its own domain needs no code change (`CNAME` is not required for
+  Actions-based publishing).
 
 ### Changed
 - `publish.yml` hardening:
