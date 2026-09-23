@@ -60,6 +60,25 @@ def _has_default(branch: str) -> bool:
     return True
 
 
+def _sync_branch(branch: str, remote: str) -> None:
+    """Point the local docs branch at the remote one so commits keep history.
+
+    mike reuses an existing *local* branch; without this, a fresh CI clone
+    (which only has ``<remote>/<branch>``) would make mike create an unrelated
+    orphan branch and the push would be rejected as non-fast-forward.
+    """
+    remote_ref = f"{remote}/{branch}"
+    probe = subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", remote_ref],
+        cwd=REPO_ROOT, capture_output=True,
+    )
+    if probe.returncode != 0:
+        print(f"+ {remote_ref} not found; mike will create {branch} from scratch", flush=True)
+        return
+    subprocess.run(["git", "branch", "-f", branch, remote_ref], cwd=REPO_ROOT, check=True)
+    print(f"+ {branch} -> {remote_ref}", flush=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("version", help="docs version to deploy, e.g. 0.2 or dev")
@@ -92,6 +111,8 @@ def main() -> int:
     if args.dry_run:
         subprocess.run(build, check=True, env=env, cwd=REPO_ROOT)
         return 0
+
+    _sync_branch(args.branch, args.remote)
 
     cfg = {"site_dir": str(SITE_DIR), "use_directory_urls": True}
     # `copy` aliases: the deployed Pages artifact must work without symlinks.

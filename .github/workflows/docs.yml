@@ -48,7 +48,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin gh-pages --depth=1 || true
           if [ "${{ github.ref_type }}" = "tag" ]; then
             RAW="${{ github.ref_name }}"; RAW="${RAW#v}"
             VERSION="$(echo "$RAW" | cut -d. -f1,2)" # 0.2.1 -> 0.2 (mike line)
