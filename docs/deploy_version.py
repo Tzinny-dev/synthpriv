@@ -115,12 +115,18 @@ def main() -> int:
 
     cfg = {"site_dir": str(SITE_DIR), "use_directory_urls": True}
     # `copy` aliases: the deployed Pages artifact must work without symlinks.
-    with deploy(cfg, args.version, title=args.title, aliases=args.alias,
-                update_aliases=True, alias_type=AliasType.copy, branch=args.branch):
-        subprocess.run(build, check=True, env=env, cwd=REPO_ROOT)
+    try:
+        with deploy(cfg, args.version, title=args.title, aliases=args.alias,
+                    update_aliases=True, alias_type=AliasType.copy, branch=args.branch):
+            subprocess.run(build, check=True, env=env, cwd=REPO_ROOT)
+    except git_utils.GitEmptyCommit:
+        print(f"+ version {args.version} content unchanged; nothing new to commit", flush=True)
 
     if args.set_default or (args.set_default_if_missing and not _has_default(args.branch)):
-        set_default(args.version, branch=args.branch)
+        try:
+            set_default(args.version, branch=args.branch)
+        except git_utils.GitEmptyCommit:
+            print(f"+ default already points to {args.version}; nothing to commit", flush=True)
 
     if args.push:
         command = ["git", "push", args.remote, args.branch]
