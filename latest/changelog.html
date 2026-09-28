@@ -4,7 +4,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="prev" title="API reference" href="api.html">
-        <link rel="canonical" href="https://tzinny-dev.github.io/synthpriv/changelog.html">
+        <link rel="canonical" href="https://synthpriv.tzinny.com/0.2/changelog.html">
 
     <!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Changelog - synthpriv 0.2.1</title>
@@ -12,6 +12,7 @@
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=72fc7943" />
     
     
 
@@ -36,7 +37,17 @@
       }
     }
   }
-</style></head>
+</style>
+  
+  <!-- Google Analytics (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-7HBPMKCQXE"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-7HBPMKCQXE', { anonymize_ip: true });
+  </script>
+</head>
   <body>
     
     <script>
@@ -213,9 +224,23 @@
     <li class="toctree-l1 current">
       <span class="current-version">0.2 (this version)</span>
     </li>
+    <li class="toctree-l1">
+      <a class="reference internal" href="https://synthpriv.tzinny.com/dev/">dev (unreleased)</a>
+    </li>
   </ul>
 </div>
 
+<div class="sidebar-tree">
+  <p class="caption" role="heading"><span class="caption-text">Support</span></p>
+  <div class="support-buttons">
+    <a class="support-btn support-btn--paypal" href="https://paypal.me/carlostzin" target="_blank" rel="noopener noreferrer">
+      PayPal
+    </a>
+    <a class="support-btn support-btn--bmc" href="https://www.buymeacoffee.com/tzinny" target="_blank" rel="noopener noreferrer">
+      Buy Me a Coffee
+    </a>
+  </div>
+</div>
 </div>
       </div>
       
@@ -277,11 +302,35 @@ line (alias <code class="docutils literal notranslate"><span class="pre">latest<
 come from <code class="docutils literal notranslate"><span class="pre">actions/configure-pages</span></code> (<code class="docutils literal notranslate"><span class="pre">base_url</span></code>), so moving the site to
 its own domain needs no code change (<code class="docutils literal notranslate"><span class="pre">CNAME</span></code> is not required for
 Actions-based publishing).</p></li>
+<li><p>Site analytics: Google Analytics 4 (<code class="docutils literal notranslate"><span class="pre">gtag.js</span></code>, IP anonymized) injected in
+the <code class="docutils literal notranslate"><span class="pre">&lt;head&gt;</span></code> of every page through a Furo <code class="docutils literal notranslate"><span class="pre">extrahead</span></code> override
+(<code class="docutils literal notranslate"><span class="pre">docs/_templates/base.html</span></code>). The measurement ID defaults to
+<code class="docutils literal notranslate"><span class="pre">G-7HBPMKCQXE</span></code> in <code class="docutils literal notranslate"><span class="pre">docs/conf.py</span></code>, can be overridden with
+<code class="docutils literal notranslate"><span class="pre">GOOGLE_ANALYTICS_ID</span></code> (forwarded from the <code class="docutils literal notranslate"><span class="pre">GOOGLE_ANALYTICS_ID</span></code>
+repository variable in <code class="docutils literal notranslate"><span class="pre">docs.yml</span></code>) and turned off with
+<code class="docutils literal notranslate"><span class="pre">GOOGLE_ANALYTICS_ID=off</span></code>; disclosed in the README and in
+<code class="docutils literal notranslate"><span class="pre">docs/index.rst</span></code>.</p></li>
+<li><p>Support buttons (PayPal, Buy Me a Coffee) in the sidebar of every page
+(<code class="docutils literal notranslate"><span class="pre">docs/_templates/sidebar/support.html</span></code>, wired via <code class="docutils literal notranslate"><span class="pre">html_sidebars</span></code>, with
+styles in <code class="docutils literal notranslate"><span class="pre">docs/_static/custom.css</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sitemap.xml</span></code> from the new <code class="docutils literal notranslate"><span class="pre">sphinx-sitemap</span></code> extension (only when
+<code class="docutils literal notranslate"><span class="pre">DOCS_BASE_URL</span></code> is set, so local/PR builds are unaffected) and a
+<code class="docutils literal notranslate"><span class="pre">robots.txt</span></code> written at the site root by <code class="docutils literal notranslate"><span class="pre">docs.yml</span></code> — necessary because
+mike keeps every build inside a version directory.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CONTRIBUTING.md</span></code> (dev setup, tests, docs build/deploy, release
+checklist) and <code class="docutils literal notranslate"><span class="pre">CITATION.cff</span></code>.</p></li>
+<li><p>README: <code class="docutils literal notranslate"><span class="pre">Documentation</span></code> section (versioned site + local build), <code class="docutils literal notranslate"><span class="pre">Support</span></code>
+section with the donation links, and phase-table rows for the docs site
+commits (<code class="docutils literal notranslate"><span class="pre">308434a</span></code>, <code class="docutils literal notranslate"><span class="pre">5339aa9</span></code>).</p></li>
 </ul>
 </section>
 <section id="changed">
 <h3>Changed<a class="headerlink" href="#changed" title="Link to this heading">¶</a></h3>
 <ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">docs/conf.py</span></code>: <code class="docutils literal notranslate"><span class="pre">html_baseurl</span></code> now includes the <code class="docutils literal notranslate"><span class="pre">DOCS_VERSION</span></code> directory
+and <code class="docutils literal notranslate"><span class="pre">sitemap_url_scheme</span></code> is <code class="docutils literal notranslate"><span class="pre">{link}</span></code> (the extension’s default would
+prepend Sphinx’s <code class="docutils literal notranslate"><span class="pre">language</span></code>/<code class="docutils literal notranslate"><span class="pre">version</span></code>, which are not part of the deployed
+path).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">publish.yml</span></code> hardening:</p>
 <ul>
 <li><p><strong>tests gate</strong>: the tag pipeline now runs the full test matrix before
@@ -294,6 +343,14 @@ checks <code class="docutils literal notranslate"><span class="pre">importlib.me
 <li><p><code class="docutils literal notranslate"><span class="pre">twine</span> <span class="pre">check</span> <span class="pre">--strict</span></code>.</p></li>
 </ul>
 </li>
+</ul>
+</section>
+<section id="fixed">
+<h3>Fixed<a class="headerlink" href="#fixed" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Documentation canonical URLs: <code class="docutils literal notranslate"><span class="pre">html_baseurl</span></code> gained the mike version
+directory, so <code class="docutils literal notranslate"><span class="pre">rel=&quot;canonical&quot;</span></code> points at <code class="docutils literal notranslate"><span class="pre">&lt;base&gt;/0.2/page.html</span></code> instead of
+<code class="docutils literal notranslate"><span class="pre">&lt;base&gt;/page.html</span></code>, which is a 404 at the site root.</p></li>
 </ul>
 </section>
 <section id="known-limitations">
@@ -370,16 +427,16 @@ RDP-only (<code class="docutils literal notranslate"><span class="pre">dp-copula
 <li><p>Docs fully in English; <code class="docutils literal notranslate"><span class="pre">README</span></code> CLI/demo/tests updated.</p></li>
 </ul>
 </section>
-<section id="fixed">
-<h3>Fixed<a class="headerlink" href="#fixed" title="Link to this heading">¶</a></h3>
+<section id="id7">
+<h3>Fixed<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p>Stale <code class="docutils literal notranslate"><span class="pre">phase</span> <span class="pre">0.1</span> <span class="pre">/</span> <span class="pre">dp-gan</span> <span class="pre">only</span></code> docstrings (<code class="docutils literal notranslate"><span class="pre">mechanisms</span></code>, <code class="docutils literal notranslate"><span class="pre">assurance</span></code>,
 <code class="docutils literal notranslate"><span class="pre">pipeline</span></code> leftover Spanish comments).</p></li>
 </ul>
 </section>
 </section>
-<section id="id7">
-<h2><a class="reference external" href="https://github.com/Tzinny-dev/synthpriv/releases/tag/v0.1.0">0.1.0</a> - 2026-09-08<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h2>
+<section id="id8">
+<h2><a class="reference external" href="https://github.com/Tzinny-dev/synthpriv/releases/tag/v0.1.0">0.1.0</a> - 2026-09-08<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h2>
 <p>Alpha: tabular synthesis with differential privacy (<code class="docutils literal notranslate"><span class="pre">dp-gan</span></code> DP-SGD,
 <code class="docutils literal notranslate"><span class="pre">dp-copula</span></code> pure DP), DP marginal ECDFs, budget split, benchmark/sweep, HTML
 report, CLI, <code class="docutils literal notranslate"><span class="pre">assert_dp</span></code>, persistence.</p>
@@ -437,6 +494,7 @@ report, CLI, <code class="docutils literal notranslate"><span class="pre">assert
 <li><a class="reference internal" href="#unreleased">Unreleased</a><ul>
 <li><a class="reference internal" href="#added">Added</a></li>
 <li><a class="reference internal" href="#changed">Changed</a></li>
+<li><a class="reference internal" href="#fixed">Fixed</a></li>
 <li><a class="reference internal" href="#known-limitations">Known limitations</a></li>
 </ul>
 </li>
@@ -449,10 +507,10 @@ report, CLI, <code class="docutils literal notranslate"><span class="pre">assert
 <li><a class="reference internal" href="#b1-2026-09-15">0.2.0b1 - 2026-09-15</a><ul>
 <li><a class="reference internal" href="#id5">Added</a></li>
 <li><a class="reference internal" href="#id6">Changed</a></li>
-<li><a class="reference internal" href="#fixed">Fixed</a></li>
+<li><a class="reference internal" href="#id7">Fixed</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#id7">0.1.0 - 2026-09-08</a></li>
+<li><a class="reference internal" href="#id8">0.1.0 - 2026-09-08</a></li>
 </ul>
 </li>
 </ul>

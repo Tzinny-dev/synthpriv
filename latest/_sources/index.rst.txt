@@ -43,3 +43,11 @@ Indices
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+Site analytics
+--------------
+
+This documentation site uses Google Analytics 4 to count page views, with IP
+anonymization enabled. No personal data is collected and no synthpriv cookie
+is set; the measurement ID is a repository setting
+(``GOOGLE_ANALYTICS_ID``) and can be turned off with ``GOOGLE_ANALYTICS_ID=off``.

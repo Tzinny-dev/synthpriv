@@ -1,0 +1,35 @@
+/* Sidebar donation buttons (docs/_templates/sidebar/support.html). */
+.support-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: var(--sidebar-item-spacing-vertical) var(--sidebar-item-spacing-horizontal);
+}
+
+.support-btn {
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: #fff;
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0.45rem 0.75rem;
+  text-align: center;
+  text-decoration: none;
+  transition: filter 0.15s ease;
+}
+
+.support-btn:hover {
+  color: #fff;
+  filter: brightness(1.1);
+  text-decoration: none;
+}
+
+.support-btn--paypal {
+  background: #003087;
+}
+
+.support-btn--bmc {
+  background: #ff813f;
+}
