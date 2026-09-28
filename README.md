@@ -36,6 +36,8 @@ The project evolves in cumulative phases, each with its own test suite and commi
 | — | `b939af3` | Build: PyPI publication prep (MIT license, PEP 639/URIs/classifiers, dev extras build+twine, README intro) |
 | — | `c19fc3c` | Build/CI: PEP 639 `license-files`, docs/changelog URLs, MANIFEST.in, badges + `pip install`, CI matrix 3.10–3.12 + package job, publish workflow (Trusted Publisher + attestations) |
 | — | `58a144a` | Release: tag↔version guard in `publish.yml`, GitHub release after PyPI publish, dynamic version single-source, bump 0.2.1 |
+| — | `308434a` | Docs: Sphinx + Furo site on GitHub Pages (`docs.yml`, `-W` build), `Documentation` URL |
+| — | `5339aa9` | Docs: versioned docs with **mike** (sidebar version selector, `deploy_version.py`, tag/dev deploys; fixes `2f936f9`, `3e02bbb`, `edd39ba`) |
 
 ## Installation
 
@@ -57,6 +59,24 @@ python -m venv .venv
 Dependencies: Python 3.10–3.12, numpy, pandas, scipy, scikit-learn, SDV < 2, SDMetrics,
 anonymeter, Opacus, click, Jinja2. (Python 3.13 unsupported for now: `anonymeter`
 pins `numpy<1.27`, which ships no 3.13 wheels — tracked upstream.)
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow (tests, docs
+build/deploy and release checklist).
+
+## Documentation
+
+The full documentation — quick start, differential privacy, sweep/benchmark,
+CLI and API reference — is published at
+[tzinny-dev.github.io/synthpriv](https://tzinny-dev.github.io/synthpriv/).
+It is versioned: tag pushes deploy the `X.Y` line (alias `latest`) and pushes
+to `main` deploy `dev`, with a version selector in the sidebar.
+
+Build it locally (warnings are errors, as in CI):
+
+```bash
+.venv/bin/pip install -e ".[docs]"
+.venv/bin/python -m sphinx -W -b html docs docs/_build/html
+```
 
 ## Quick start
 
@@ -255,9 +275,20 @@ is what an MLP DP-GAN learns least on small datasets (see Limitations).
   with `rectify_marginals=True` only when marginal utility is the priority over that
   consideration.
 
+## Support
+
+If synthpriv is useful to you, you can support its development with
+[PayPal](https://paypal.me/carlostzin) or
+[Buy Me a Coffee](https://www.buymeacoffee.com/tzinny). The same buttons live
+in the sidebar of the documentation site.
+
 ## Privacy note
 
 Synthetic data **without DP is not guaranteed anonymization**. The report suggests
 which ε level to use and which empirical risk is measured, but formal protection only
 comes from training with a DP mechanism (`DPSGD` + `dp-gan`/`dp-copula`) and verifying it with
 `assert_dp`.
+
+The documentation site itself uses Google Analytics 4 (page views only, IP
+anonymized, no personal data and no synthpriv cookie); it can be disabled when
+building with `GOOGLE_ANALYTICS_ID=off`.

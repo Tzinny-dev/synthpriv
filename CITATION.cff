@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use synthpriv in your research, please cite it as below."
+title: "synthpriv: tabular data synthesis preserving differential privacy"
+version: 0.2.1
+date-released: "2026-09-21"
+license: MIT
+repository-code: "https://github.com/Tzinny-dev/synthpriv"
+url: "https://tzinny-dev.github.io/synthpriv/"
+keywords:
+  - differential-privacy
+  - synthetic-data
+  - tabular-data
+  - data-synthesis
+  - privacy
+authors:
+  - given-names: Carlos
+    email: 921charly@gmail.com
+abstract: >-
+  Library and command-line tool for tabular data synthesis with a formal
+  differential-privacy guarantee: DP-SGD GAN (dp-gan), private Gaussian copula
+  (dp-copula), DP marginal ECDFs, privacy/utility metrics, budget sweep,
+  benchmark and self-contained HTML reports.

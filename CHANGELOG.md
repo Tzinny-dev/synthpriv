@@ -24,8 +24,32 @@ All notable changes to `synthpriv` are documented here. Format follows
   come from `actions/configure-pages` (`base_url`), so moving the site to
   its own domain needs no code change (`CNAME` is not required for
   Actions-based publishing).
+- Site analytics: Google Analytics 4 (`gtag.js`, IP anonymized) injected in
+  the `<head>` of every page through a Furo `extrahead` override
+  (`docs/_templates/base.html`). The measurement ID defaults to
+  `G-7HBPMKCQXE` in `docs/conf.py`, can be overridden with
+  `GOOGLE_ANALYTICS_ID` (forwarded from the `GOOGLE_ANALYTICS_ID`
+  repository variable in `docs.yml`) and turned off with
+  `GOOGLE_ANALYTICS_ID=off`; disclosed in the README and in
+  `docs/index.rst`.
+- Support buttons (PayPal, Buy Me a Coffee) in the sidebar of every page
+  (`docs/_templates/sidebar/support.html`, wired via `html_sidebars`, with
+  styles in `docs/_static/custom.css`).
+- `sitemap.xml` from the new `sphinx-sitemap` extension (only when
+  `DOCS_BASE_URL` is set, so local/PR builds are unaffected) and a
+  `robots.txt` written at the site root by `docs.yml` — necessary because
+  mike keeps every build inside a version directory.
+- `CONTRIBUTING.md` (dev setup, tests, docs build/deploy, release
+  checklist) and `CITATION.cff`.
+- README: `Documentation` section (versioned site + local build), `Support`
+  section with the donation links, and phase-table rows for the docs site
+  commits (`308434a`, `5339aa9`).
 
 ### Changed
+- `docs/conf.py`: `html_baseurl` now includes the `DOCS_VERSION` directory
+  and `sitemap_url_scheme` is `{link}` (the extension's default would
+  prepend Sphinx's `language`/`version`, which are not part of the deployed
+  path).
 - `publish.yml` hardening:
   - **tests gate**: the tag pipeline now runs the full test matrix before
     `build`/`publish` (a tag no longer publishes untested code).
@@ -35,6 +59,11 @@ All notable changes to `synthpriv` are documented here. Format follows
     `synthpriv==<version>` from real PyPI (with propagation retries) and
     checks `importlib.metadata` version + `synthpriv --help`.
   - `twine check --strict`.
+
+### Fixed
+- Documentation canonical URLs: `html_baseurl` gained the mike version
+  directory, so `rel="canonical"` points at `<base>/0.2/page.html` instead of
+  `<base>/page.html`, which is a 404 at the site root.
 
 ### Known limitations
 - **Python 3.13 unsupported**: `anonymeter 1.1.0` (latest) pins
