@@ -65,6 +65,7 @@ html_sidebars = {
         "sidebar/search.html",
         "sidebar/navigation.html",
         "sidebar/versions.html",
+        "sidebar/support.html",
         "sidebar/ethical-ads.html",
         "sidebar/scroll-end.html",
     ]
@@ -103,10 +104,30 @@ def _load_versions() -> list[dict]:
 
 
 _html_base_url = os.environ.get("DOCS_BASE_URL", "").rstrip("/")
+_html_version = os.environ.get("DOCS_VERSION", "").strip()
 if _html_base_url:
-    html_baseurl = f"{_html_base_url}/"
+    # mike deploys each build into `<base>/<version>/`, so the canonical URL
+    # has to carry the version segment (a bare `<base>/page.html` is a 404).
+    html_baseurl = f"{_html_base_url}/{_html_version}/" if _html_version else f"{_html_base_url}/"
+    extensions.append("sphinx_sitemap")  # needs html_baseurl; PR builds skip it
+    # Default scheme would prepend Sphinx's `language`/`version`, which are not
+    # part of the deployed path (the version directory is already in baseurl).
+    sitemap_url_scheme = "{link}"
+
+# -- Static assets ----------------------------------------------------------
+html_static_path = ["_static"]
+html_css_files = ["custom.css"]
+
+# -- Analytics --------------------------------------------------------------
+# Rendered by docs/_templates/base.html into the <head> of every page.
+# `GOOGLE_ANALYTICS_ID` overrides the default (CI forwards the repository
+# variable of the same name); "off"/"none" turns analytics off entirely.
+google_analytics_id = os.environ.get("GOOGLE_ANALYTICS_ID", "").strip() or "G-7HBPMKCQXE"
+if google_analytics_id.lower() in {"off", "none", "0"}:
+    google_analytics_id = ""
 
 html_context = {
     "versions": _load_versions(),
     "current_version": os.environ.get("DOCS_VERSION", ""),
+    "google_analytics_id": google_analytics_id,
 }

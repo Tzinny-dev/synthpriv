@@ -1,0 +1,15 @@
+{% extends "!base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {%- if google_analytics_id %}
+  <!-- Google Analytics (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_id }}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '{{ google_analytics_id }}', { anonymize_ip: true });
+  </script>
+  {%- endif %}
+{% endblock %}

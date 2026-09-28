@@ -23,6 +23,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Optional repository variable; falls back to the conf.py default.
+      GOOGLE_ANALYTICS_ID: ${{ vars.GOOGLE_ANALYTICS_ID }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -67,6 +70,13 @@ jobs:
         with:
           ref: gh-pages
           path: _site
+      # robots.txt is only honoured at the domain root, and mike keeps every
+      # build inside a version directory, so it is written onto the branch here.
+      - name: Write robots.txt at the site root
+        if: github.event_name != 'pull_request'
+        run: |
+          printf 'User-agent: *\nAllow: /\n\nSitemap: %s/latest/sitemap.xml\n' \
+            "${DOCS_BASE_URL}" > _site/robots.txt
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
